@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AvioFrame • Live Split-Flap Overhead Flight Display</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6;
+      background-image: 
+        linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      color: #111827;
+      transition: background-color 0.3s ease;
+    }
+
+    body.dark-ambient {
+      background-color: #0b0f17;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      color: #f8fafc;
+    }
+
+    .font-flap {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .frame-black {
+      background: linear-gradient(145deg, #27272a, #18181b 45%, #09090b);
+      box-shadow: 
+        0 30px 60px -15px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+        0 12px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .frame-oak {
+      background: repeating-linear-gradient(
+        90deg,
+        #8c5a32 0px,
+        #7c4d28 3px,
+        #96633a 6px,
+        #784824 10px
+      );
+      box-shadow: 
+        0 30px 60px -15px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.2) inset,
+        0 12px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .frame-inner-bevel {
+      box-shadow: 
+        inset 0 4px 10px rgba(0, 0, 0, 0.85),
+        inset 0 -2px 4px rgba(255, 255, 255, 0.08);
+    }
+
+    .eink-screen {
+      background-color: #f6f6f4;
+      background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 0);
+      background-size: 4px 4px;
+      box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.14);
+      color: #141413;
+    }
+
+    .flap-tile {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #2b2b2e 0%, #1c1c1e 49%, #121214 51%, #202022 100%);
+      color: #f8fafc;
+      border-radius: 4px;
+      box-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .flap-tile::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1.5px;
+      background: rgba(0, 0, 0, 0.75);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+      z-index: 10;
+    }
+
+    .flap-tile::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 4px;
+      transform: translateY(-50%);
+      border-left: 2px solid #09090b;
+      border-right: 2px solid #09090b;
+      z-index: 11;
+    }
+
+    @keyframes flipTick {
+      0% { transform: rotateX(0deg); }
+      45% { transform: rotateX(-85deg); filter: brightness(0.6); }
+      55% { transform: rotateX(75deg); filter: brightness(1.2); }
+      100% { transform: rotateX(0deg); }
+    }
+
+    .animate-flap {
+      animation: flipTick 0.24s cubic-bezier(0.25, 0.8, 0.25, 1);
+      transform-style: preserve-3d;
+    }
+
+    @keyframes aircraftCruise {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-2.5px) rotate(-0.35deg); }
+    }
+
+    .aircraft-float {
+      animation: aircraftCruise 4.5s ease-in-out infinite;
+    }
+
+    body.fullscreen-mode header,
+    body.fullscreen-mode .control-dock {
+      display: none !important;
+    }
+    body.fullscreen-mode main {
+      padding: 0 !important;
+      max-width: 100% !important;
+      height: 100vh !important;
+    }
+    body.fullscreen-mode #physical-frame {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      border-radius: 0 !important;
+      padding: 18px !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- TOP HEADER -->
+  <header class="w-full max-w-6xl mx-auto px-4 sm:px-8 pt-5 pb-3 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center font-extrabold tracking-tighter text-xl sm:text-2xl select-none">
+        <span class="flex items-center">
+          AV<span class="relative inline-flex items-center justify-center mx-0.5"><i data-lucide="plane" class="w-4 h-4 -rotate-45 stroke-[2.6]"></i></span>O
+        </span>
+        <span class="ml-1.5 border-2 border-current px-1.5 py-0.5 text-sm sm:text-base tracking-widest font-black">FRAME</span>
+      </div>
+      <span class="hidden sm:inline-block text-xs font-mono uppercase tracking-widest opacity-50 border-l border-current pl-3">Live Overhead Radar</span>
+    </div>
+
+    <div class="flex items-center space-x-2.5">
+      <div class="relative">
+        <select id="location-select" onchange="changeLocation()" class="appearance-none bg-white/90 dark:bg-slate-900 border border-gray-300 text-gray-800 text-xs sm:text-sm font-medium rounded-full pl-4 pr-9 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-black cursor-pointer">
+          <option value="London">United Kingdom • London</option>
+          <option value="Southend-on-Sea">United Kingdom • Southend</option>
+          <option value="Manchester">United Kingdom • Manchester</option>
+          <option value="New York">United States • New York</option>
+          <option value="Frankfurt">Germany • Frankfurt</option>
+          <option value="Dubai">UAE • Dubai</option>
+        </select>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-500 absolute right-3 top-2.5 pointer-events-none"></i>
+      </div>
+
+      <button onclick="toggleSound()" id="sound-btn" title="Toggle Split-Flap Mechanical Sound" class="w-9 h-9 rounded-full bg-white border border-gray-300 text-gray-700 flex items-center justify-center shadow-sm hover:bg-gray-50 transition">
+        <i data-lucide="volume-2" class="w-4 h-4"></i>
+      </button>
+
+      <button onclick="toggleAmbientTheme()" id="theme-btn" title="Toggle Room Lighting" class="w-9 h-9 rounded-full bg-white border border-gray-300 text-gray-700 flex items-center justify-center shadow-sm hover:bg-gray-50 transition">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- CENTERPIECE HARDWARE FRAME -->
+  <main class="flex-1 flex flex-col items-center justify-center px-3 sm:px-6 py-4">
+    <div id="physical-frame" class="frame-black relative w-full max-w-[820px] rounded-xl sm:rounded-2xl p-5 sm:p-8 md:p-10 transition-all duration-500">
+      <div class="frame-inner-bevel bg-[#141416] p-1.5 sm:p-2 rounded-sm">
+        <div class="eink-screen w-full aspect-[16/10.3] rounded-[2px] p-4 sm:p-7 md:p-9 flex flex-col justify-between relative overflow-hidden">
+          
+          <!-- TOP TELEMETRY HEADER -->
+          <div class="flex items-start justify-between">
+            <div>
+              <p class="text-[11px] sm:text-xs md:text-sm font-medium text-neutral-500 tracking-tight">
+                The sky over <span id="display-sky-location" class="text-neutral-700 font-semibold">London</span>:
+              </p>
+
+              <div class="flex items-center space-x-2 sm:space-x-3 mt-1.5 sm:mt-2">
+                <div id="flaps-origin" class="flex space-x-1"></div>
+                <span class="text-lg sm:text-2xl md:text-3xl font-bold text-neutral-800 px-0.5">&rarr;</span>
+                <div id="flaps-dest" class="flex space-x-1"></div>
+              </div>
+
+              <div class="flex items-center justify-between text-[10px] sm:text-xs font-semibold text-neutral-700 mt-1.5 px-0.5">
+                <span id="display-origin-city" class="truncate max-w-[110px] sm:max-w-[160px]">London</span>
+                <span id="display-dest-city" class="truncate max-w-[110px] sm:max-w-[160px] text-right">Miami</span>
+              </div>
+            </div>
+
+            <div class="text-right flex items-center space-x-1.5 text-[10px] sm:text-xs font-mono text-neutral-500">
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+              <span>Live <span id="display-clock" class="font-semibold text-neutral-700">10:40</span></span>
+            </div>
+          </div>
+
+          <!-- FLIGHT NUMBER & AIRCRAFT METADATA -->
+          <div class="flex flex-wrap items-center gap-2 sm:gap-2.5 mt-2 sm:mt-3">
+            <div id="flaps-flight" class="flex space-x-0.5"></div>
+            <p id="display-aircraft-meta" class="text-[10px] sm:text-xs md:text-[13px] font-medium text-neutral-700 tracking-tight">
+              Virgin Atlantic, Airbus A330-900neo, G-VTOM
+            </p>
+          </div>
+
+          <!-- AIRCRAFT SIDE-PROFILE LIVERY ILLUSTRATION -->
+          <div class="my-auto py-1 sm:py-2 flex items-center justify-center">
+            <div id="aircraft-svg-container" class="w-full max-w-[540px] aircraft-float transition-all duration-500"></div>
+          </div>
+
+          <!-- BOTTOM METRICS & COMPASS -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-neutral-300/60">
+            <div class="flex flex-wrap items-center gap-2.5 sm:gap-4">
+              <div class="flex items-center space-x-1.5">
+                <div id="flaps-alt" class="flex space-x-0.5"></div>
+                <span id="display-vspeed" class="text-[9px] sm:text-[11px] font-medium text-neutral-500">climbing</span>
+              </div>
+
+              <div class="flex items-center space-x-1">
+                <div id="flaps-speed" class="flex space-x-0.5"></div>
+              </div>
+
+              <div class="flex items-center space-x-1.5">
+                <div id="flaps-dist" class="flex space-x-0.5"></div>
+                <span class="text-[9px] sm:text-[11px] font-medium text-neutral-500">away</span>
+              </div>
+            </div>
+
+            <div class="flex items-center space-x-1.5 ml-auto">
+              <span id="display-bearing-dir" class="text-[10px] sm:text-xs font-extrabold text-neutral-800 font-mono">W</span>
+              <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-neutral-700 flex items-center justify-center relative bg-white/60">
+                <div id="compass-needle" class="w-full h-full flex items-center justify-center transition-transform duration-700" style="transform: rotate(-90deg);">
+                  <div class="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[8px] border-b-neutral-900 -translate-y-1"></div>
+                </div>
+                <div class="w-1 h-1 rounded-full bg-neutral-900 absolute"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="text-center mt-2.5 sm:mt-3.5 select-none">
+        <span class="font-flap text-[10px] sm:text-xs tracking-[0.42em] text-neutral-400/75 font-semibold uppercase">AVIOFRAME</span>
+      </div>
+    </div>
+
+    <button id="exit-fullscreen-btn" onclick="toggleFullscreen()" class="hidden fixed top-5 right-5 z-50 bg-black/80 text-white text-xs font-mono px-3.5 py-2 rounded-full border border-white/20 backdrop-blur-md hover:bg-black">
+      Exit Fullscreen (ESC)
+    </button>
+  </main>
+
+  <!-- BOTTOM CONTROL DOCK -->
+  <div class="control-dock w-full max-w-4xl mx-auto px-4 pb-6 pt-2">
+    <div class="bg-white/95 backdrop-blur-md border border-gray-200/90 shadow-lg rounded-2xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+      
+      <div class="flex items-center space-x-2">
+        <button onclick="prevFlight()" class="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition" title="Previous Flight">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <div class="px-2">
+          <div class="text-[10px] font-mono uppercase text-gray-400">Overhead Traffic</div>
+          <div id="dock-flight-label" class="text-xs sm:text-sm font-bold text-gray-800">1 / 6 • VS2 (Virgin Atlantic)</div>
+        </div>
+        <button onclick="nextFlight()" class="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition" title="Next Overhead Flight">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="toggleAutoCycle()" id="auto-cycle-btn" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1.5 hover:bg-emerald-100 transition">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>Live Radar: ON</span>
+        </button>
+
+        <button onclick="toggleFrameMaterial()" id="frame-style-btn" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center space-x-1.5 transition">
+          <i data-lucide="frame" class="w-3.5 h-3.5"></i>
+          <span>Oak Frame</span>
+        </button>
+
+        <button onclick="openCustomModal()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 hover:bg-black text-white flex items-center space-x-1.5 transition">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+          <span>Custom Flight</span>
+        </button>
+
+        <button onclick="toggleFullscreen()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-black flex items-center space-x-1.5 transition">
+          <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+          <span>Fullscreen</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM FLIGHT EDITOR MODAL -->
+  <div id="custom-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 text-gray-900">
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+        <h3 class="font-bold text-base flex items-center space-x-2">
+          <i data-lucide="plane" class="w-4 h-4 text-amber-500"></i>
+          <span>Set Custom Overhead Flight</span>
+        </h3>
+        <button onclick="closeCustomModal()" class="text-gray-400 hover:text-gray-700">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="applyCustomFlight(event)" class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Origin IATA *</label>
+            <input type="text" id="cust-orig" required maxlength="3" placeholder="LHR" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono font-bold">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Destination IATA *</label>
+            <input type="text" id="cust-dest" required maxlength="3" placeholder="MIA" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono font-bold">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Origin City</label>
+            <input type="text" id="cust-orig-city" required placeholder="London" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Destination City</label>
+            <input type="text" id="cust-dest-city" required placeholder="Miami" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Flight Number *</label>
+            <input type="text" id="cust-flight" required maxlength="6" placeholder="VS2" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono font-bold">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Airline Livery *</label>
+            <select id="cust-livery" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white">
+              <option value="virgin">Virgin Atlantic</option>
+              <option value="ba">British Airways</option>
+              <option value="emirates">Emirates</option>
+              <option value="easyjet">easyJet</option>
+              <option value="lufthansa">Lufthansa</option>
+              <option value="ryanair">Ryanair</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Aircraft Type</label>
+            <input type="text" id="cust-type" required placeholder="Airbus A330-900neo" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Tail Registration</label>
+            <input type="text" id="cust-reg" required placeholder="G-VTOM" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Altitude (FT)</label>
+            <input type="number" id="cust-alt" required value="8530" min="500" max="45000" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Speed (MPH)</label>
+            <input type="number" id="cust-spd" required value="323" min="100" max="700" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-gray-600 mb-1">Distance (MI)</label>
+            <input type="number" id="cust-dist" required value="4.6" step="0.1" min="0.1" max="50" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 font-mono">
+          </div>
+        </div>
+
+        <div class="pt-3 flex justify-end space-x-2">
+          <button type="button" onclick="closeCustomModal()" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-black text-white font-semibold hover:bg-gray-800">Update Frame</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const PRESET_FLIGHTS = [
+      {
+        origin: 'LHR',
+        dest: 'MIA',
+        originCity: 'London',
+        destCity: 'Miami',
+        flight: 'VS2',
+        airline: 'Virgin Atlantic',
+        type: 'Airbus A330-900neo',
+        reg: 'G-VTOM',
+        livery: 'virgin',
+        alt: 8530,
+        vspeed: 'climbing',
+        speed: 323,
+        dist: 4.6,
+        bearingDir: 'W',
+        bearingDeg: -90
+      },
+      {
+        origin: 'LHR',
+        dest: 'JFK',
+        originCity: 'London',
+        destCity: 'New York',
+        flight: 'BA117',
+        airline: 'British Airways',
+        type: 'Boeing 777-300ER',
+        reg: 'G-STBA',
+        livery: 'ba',
+        alt: 12450,
+        vspeed: 'climbing',
+        speed: 388,
+        dist: 6.2,
+        bearingDir: 'NW',
+        bearingDeg: -45
+      },
+      {
+        origin: 'DXB',
+        dest: 'LHR',
+        originCity: 'Dubai',
+        destCity: 'London',
+        flight: 'EK1',
+        airline: 'Emirates',
+        type: 'Airbus A380-800',
+        reg: 'A6-EEU',
+        livery: 'emirates',
+        alt: 7200,
+        vspeed: 'descending',
+        speed: 265,
+        dist: 3.1,
+        bearingDir: 'E',
+        bearingDeg: 90
+      },
+      {
+        origin: 'SEN',
+        dest: 'AGP',
+        originCity: 'Southend',
+        destCity: 'Malaga',
+        flight: 'U28412',
+        airline: 'easyJet',
+        type: 'Airbus A320neo',
+        reg: 'G-UZHA',
+        livery: 'easyjet',
+        alt: 6420,
+        vspeed: 'climbing',
+        speed: 294,
+        dist: 2.4,
+        bearingDir: 'S',
+        bearingDeg: 180
+      },
+      {
+        origin: 'FRA',
+        dest: 'LHR',
+        originCity: 'Frankfurt',
+        destCity: 'London',
+        flight: 'LH904',
+        airline: 'Lufthansa',
+        type: 'Airbus A321neo',
+        reg: 'D-AIEA',
+        livery: 'lufthansa',
+        alt: 9100,
+        vspeed: 'descending',
+        speed: 281,
+        dist: 5.8,
+        bearingDir: 'SE',
+        bearingDeg: 135
+      },
+      {
+        origin: 'STN',
+        dest: 'DUB',
+        originCity: 'London Stansted',
+        destCity: 'Dublin',
+        flight: 'FR205',
+        airline: 'Ryanair',
+        type: 'Boeing 737 MAX 8-200',
+        reg: 'EI-HGF',
+        livery: 'ryanair',
+        alt: 18500,
+        vspeed: 'climbing',
+        speed: 412,
+        dist: 8.9,
+        bearingDir: 'NW',
+        bearingDeg: -55
+      }
+    ];
+
+    let currentIndex = 0;
+    let currentFlight = { ...PRESET_FLIGHTS[0] };
+    let autoCycle = true;
+    let soundEnabled = false;
+    let isOakFrame = false;
+    let isDarkAmbient = false;
+    let audioCtx = null;
+
+    function playFlapClick() {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160 + Math.random() * 60, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(45, audioCtx.currentTime + 0.035);
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.035);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+      } catch (e) {}
+    }
+
+    function renderAircraftSVG(liveryKey) {
+      const configs = {
+        virgin: {
+          tailColor: '#b91c1c',
+          tailAccent: '#7f1d1d',
+          engineColor: '#b91c1c',
+          bellyColor: '#d4d4d8',
+          title: 'virgin atlantic',
+          titleColor: '#991b1b',
+          titleFont: 'font-family: Inter, sans-serif; font-weight: 700; letter-spacing: -0.5px;',
+          tailText: 'Virgin',
+          isWidebody: true
+        },
+        ba: {
+          tailColor: '#1e3a8a',
+          tailAccent: '#dc2626',
+          engineColor: '#1e3a8a',
+          bellyColor: '#1e3a8a',
+          title: 'BRITISH AIRWAYS',
+          titleColor: '#1e3a8a',
+          titleFont: 'font-family: Inter, sans-serif; font-weight: 800; letter-spacing: 0.8px; font-size: 13px;',
+          tailText: '',
+          isWidebody: true
+        },
+        emirates: {
+          tailColor: '#dc2626',
+          tailAccent: '#15803d',
+          engineColor: '#f4f4f5',
+          bellyColor: '#e4e4e7',
+          title: 'Emirates',
+          titleColor: '#b45309',
+          titleFont: 'font-family: Georgia, serif; font-weight: 700; letter-spacing: 0.5px; font-size: 18px;',
+          tailText: '',
+          isWidebody: true
+        },
+        easyjet: {
+          tailColor: '#ea580c',
+          tailAccent: '#f97316',
+          engineColor: '#ea580c',
+          bellyColor: '#e4e4e7',
+          title: 'easyJet',
+          titleColor: '#ea580c',
+          titleFont: 'font-family: Inter, sans-serif; font-weight: 800; letter-spacing: -0.5px; font-size: 17px;',
+          tailText: '',
+          isWidebody: false
+        },
+        lufthansa: {
+          tailColor: '#0f172a',
+          tailAccent: '#eab308',
+          engineColor: '#0f172a',
+          bellyColor: '#e4e4e7',
+          title: 'Lufthansa',
+          titleColor: '#0f172a',
+          titleFont: 'font-family: Inter, sans-serif; font-weight: 700; letter-spacing: 0.2px; font-size: 16px;',
+          tailText: '',
+          isWidebody: false
+        },
+        ryanair: {
+          tailColor: '#1d4ed8',
+          tailAccent: '#facc15',
+          engineColor: '#1d4ed8',
+          bellyColor: '#1d4ed8',
+          title: 'RYANAIR',
+          titleColor: '#1d4ed8',
+          titleFont: 'font-family: Inter, sans-serif; font-weight: 900; letter-spacing: 1px; font-size: 15px;',
+          tailText: '',
+          isWidebody: false
+        }
+      };
+
+      const c = configs[liveryKey] || configs.virgin;
+
+      let windows = '';
+      for (let x = 135; x <= 395; x += 7) {
+        if (x === 212 || x === 338) continue;
+        windows += `<rect x="${x}" y="89" width="3.2" height="4.5" rx="1.2" fill="#27272a" opacity="0.85"/>`;
+      }
+
+      return `
+        <svg viewBox="0 0 560 155" class="w-full h-auto drop-shadow-md" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="fuselageGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="68%" stop-color="#f4f4f5"/>
+              <stop offset="100%" stop-color="#a1a1aa"/>
+            </linearGradient>
+            <linearGradient id="bellyGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${c.bellyColor}"/>
+              <stop offset="100%" stop-color="#52525b"/>
+            </linearGradient>
+            <linearGradient id="engineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${c.engineColor}"/>
+              <stop offset="65%" stop-color="${c.engineColor}"/>
+              <stop offset="100%" stop-color="#18181b"/>
+            </linearGradient>
+          </defs>
+
+          <path d="M 435 80 L 505 14 L 535 14 L 495 85 Z" fill="${c.tailColor}" stroke="#27272a" stroke-width="0.6"/>
+          <path d="M 455 82 L 512 28 L 530 28 L 490 85 Z" fill="${c.tailAccent}" opacity="0.45"/>
+          ${c.tailText ? `<text x="488" y="64" fill="#ffffff" font-family="Georgia, serif" font-style="italic" font-weight="bold" font-size="16" transform="rotate(-24 488 64)">${c.tailText}</text>` : ''}
+
+          <path d="M 488 94 L 542 97 L 540 102 L 484 101 Z" fill="#a1a1aa" stroke="#3f3f46" stroke-width="0.6"/>
+
+          <path d="M 38 102 C 38 89, 75 76, 125 76 L 435 76 L 526 91 C 532 92, 532 97, 524 99 L 442 112 L 118 112 C 65 112, 38 108, 38 102 Z" fill="url(#fuselageGrad)" stroke="#3f3f46" stroke-width="0.8"/>
+
+          <path d="M 65 103 L 445 103 L 438 112 L 118 112 C 88 112, 70 108, 65 103 Z" fill="url(#bellyGrad)" opacity="0.9"/>
+
+          <path d="M 52 93 L 66 87 L 78 87 L 76 94 L 55 95 Z" fill="#18181b"/>
+          <line x1="65" y1="87" x2="64" y2="94" stroke="#f4f4f5" stroke-width="1"/>
+          <line x1="72" y1="87" x2="71" y2="94" stroke="#f4f4f5" stroke-width="1"/>
+
+          <rect x="114" y="84" width="11" height="22" rx="3" fill="none" stroke="#52525b" stroke-width="0.8"/>
+          <rect x="412" y="84" width="10" height="20" rx="3" fill="none" stroke="#52525b" stroke-width="0.8"/>
+
+          ${windows}
+
+          <text x="148" y="84" fill="${c.titleColor}" style="${c.titleFont}" font-size="16">${c.title}</text>
+          <text x="415" y="81" fill="#3f3f46" font-family="JetBrains Mono, monospace" font-size="6.5" font-weight="bold">${currentFlight.reg}</text>
+
+          <path d="M 235 105 L 330 105 L 368 116 L 265 117 Z" fill="#d4d4d8" stroke="#3f3f46" stroke-width="0.8"/>
+          <path d="M 245 107 L 348 114 L 345 116 L 242 109 Z" fill="#71717a"/>
+          ${c.isWidebody ? `<path d="M 365 116 L 373 107 L 376 107 L 369 116 Z" fill="${c.tailColor}"/>` : ''}
+
+          <path d="M 205 108 L 244 108 C 249 108, 251 113, 251 118 C 251 123, 249 127, 244 127 L 205 127 C 201 127, 200 122, 200 117.5 C 200 113, 201 108, 205 108 Z" fill="url(#engineGrad)" stroke="#18181b" stroke-width="0.8"/>
+          <path d="M 244 109 L 258 112 L 258 123 L 244 126 Z" fill="#71717a" stroke="#27272a" stroke-width="0.6"/>
+          <ellipse cx="202" cy="117.5" rx="2.5" ry="9" fill="#18181b"/>
+        </svg>
+      `;
+    }
+
+    function renderFlapGroup(containerId, text, sizeClass = 'w-8 h-11 sm:w-11 sm:h-14 text-2xl sm:text-3xl', triggerAnim = true) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      const chars = String(text).split('');
+      container.innerHTML = chars.map((ch, idx) => `
+        <span class="flap-tile font-flap font-extrabold ${sizeClass} ${triggerAnim ? 'animate-flap' : ''}" style="animation-delay: ${idx * 35}ms">
+          ${ch === ' ' ? '&nbsp;' : ch}
+        </span>
+      `).join('');
+    }
+
+    function updateDisplay(triggerAnim = true) {
+      if (triggerAnim) playFlapClick();
+
+      const f = currentFlight;
+      document.getElementById('display-sky-location').textContent = document.getElementById('location-select').value;
+      document.getElementById('display-origin-city').textContent = f.originCity;
+      document.getElementById('display-dest-city').textContent = f.destCity;
+      document.getElementById('display-aircraft-meta').textContent = `${f.airline}, ${f.type}, ${f.reg}`;
+      document.getElementById('display-vspeed').textContent = f.vspeed;
+      document.getElementById('display-bearing-dir').textContent = f.bearingDir;
+      document.getElementById('compass-needle').style.transform = `rotate(${f.bearingDeg}deg)`;
+
+      renderFlapGroup('flaps-origin', f.origin.padEnd(3, ' '), 'w-8 h-11 sm:w-12 sm:h-15 text-2xl sm:text-4xl', triggerAnim);
+      renderFlapGroup('flaps-dest', f.dest.padEnd(3, ' '), 'w-8 h-11 sm:w-12 sm:h-15 text-2xl sm:text-4xl', triggerAnim);
+
+      renderFlapGroup('flaps-flight', f.flight, 'w-4 h-6 sm:w-5 sm:h-7 text-xs sm:text-sm', triggerAnim);
+
+      const altStr = `${Math.round(f.alt)}FT`;
+      const spdStr = `${Math.round(f.speed)}MPH`;
+      const distStr = `${Number(f.dist).toFixed(1)}MI`;
+
+      renderFlapGroup('flaps-alt', altStr, 'w-3.5 h-5 sm:w-4 sm:h-6 text-[10px] sm:text-xs', triggerAnim);
+      renderFlapGroup('flaps-speed', spdStr, 'w-3.5 h-5 sm:w-4 sm:h-6 text-[10px] sm:text-xs', triggerAnim);
+      renderFlapGroup('flaps-dist', distStr, 'w-3.5 h-5 sm:w-4 sm:h-6 text-[10px] sm:text-xs', triggerAnim);
+
+      document.getElementById('aircraft-svg-container').innerHTML = renderAircraftSVG(f.livery);
+
+      document.getElementById('dock-flight-label').textContent = `${currentIndex + 1} / ${PRESET_FLIGHTS.length} • ${f.flight} (${f.airline})`;
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('display-clock').textContent = `${hh}:${mm}`;
+    }
+
+    setInterval(() => {
+      if (!autoCycle) return;
+      if (currentFlight.vspeed === 'climbing') {
+        currentFlight.alt += Math.floor(Math.random() * 65) + 20;
+        currentFlight.speed += Math.floor(Math.random() * 3);
+      } else {
+        currentFlight.alt = Math.max(1200, currentFlight.alt - (Math.floor(Math.random() * 55) + 15));
+        currentFlight.speed = Math.max(155, currentFlight.speed - Math.floor(Math.random() * 2));
+      }
+      currentFlight.dist = Math.max(0.4, +(currentFlight.dist + (Math.random() > 0.5 ? 0.1 : -0.1)).toFixed(1));
+      updateDisplay(false);
+    }, 3500);
+
+    setInterval(() => {
+      if (!autoCycle) return;
+      nextFlight();
+    }, 14000);
+
+    function nextFlight() {
+      currentIndex = (currentIndex + 1) % PRESET_FLIGHTS.length;
+      currentFlight = { ...PRESET_FLIGHTS[currentIndex] };
+      updateDisplay(true);
+    }
+
+    function prevFlight() {
+      currentIndex = (currentIndex - 1 + PRESET_FLIGHTS.length) % PRESET_FLIGHTS.length;
+      currentFlight = { ...PRESET_FLIGHTS[currentIndex] };
+      updateDisplay(true);
+    }
+
+    function changeLocation() {
+      const loc = document.getElementById('location-select').value;
+      document.getElementById('display-sky-location').textContent = loc;
+      if (loc === 'Southend-on-Sea') {
+        currentIndex = 3;
+        currentFlight = { ...PRESET_FLIGHTS[3] };
+      } else if (loc === 'New York') {
+        currentIndex = 1;
+        currentFlight = { ...PRESET_FLIGHTS[1] };
+      }
+      updateDisplay(true);
+    }
+
+    function toggleAutoCycle() {
+      autoCycle = !autoCycle;
+      const btn = document.getElementById('auto-cycle-btn');
+      if (autoCycle) {
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1.5 hover:bg-emerald-100 transition";
+        btn.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span><span>Live Radar: ON</span>`;
+      } else {
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 flex items-center space-x-1.5 hover:bg-gray-200 transition";
+        btn.innerHTML = `<span class="w-2 h-2 rounded-full bg-gray-400"></span><span>Live Radar: PAUSED</span>`;
+      }
+    }
+
+    function toggleFrameMaterial() {
+      isOakFrame = !isOakFrame;
+      const frame = document.getElementById('physical-frame');
+      const btn = document.getElementById('frame-style-btn');
+      if (isOakFrame) {
+        frame.classList.remove('frame-black');
+        frame.classList.add('frame-oak');
+        btn.innerHTML = `<i data-lucide="frame" class="w-3.5 h-3.5"></i><span>Black Frame</span>`;
+      } else {
+        frame.classList.remove('frame-oak');
+        frame.classList.add('frame-black');
+        btn.innerHTML = `<i data-lucide="frame" class="w-3.5 h-3.5"></i><span>Oak Frame</span>`;
+      }
+      lucide.createIcons();
+    }
+
+    function toggleAmbientTheme() {
+      isDarkAmbient = !isDarkAmbient;
+      document.body.classList.toggle('dark-ambient', isDarkAmbient);
+      const btn = document.getElementById('theme-btn');
+      btn.innerHTML = isDarkAmbient ? `<i data-lucide="sun" class="w-4 h-4"></i>` : `<i data-lucide="moon" class="w-4 h-4"></i>`;
+      lucide.createIcons();
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('sound-btn');
+      btn.innerHTML = soundEnabled ? `<i data-lucide="volume-2" class="w-4 h-4 text-emerald-600"></i>` : `<i data-lucide="volume-x" class="w-4 h-4 text-gray-400"></i>`;
+      if (soundEnabled) playFlapClick();
+      lucide.createIcons();
+    }
+
+    function toggleFullscreen() {
+      const active = document.body.classList.toggle('fullscreen-mode');
+      document.getElementById('exit-fullscreen-btn').classList.toggle('hidden', !active);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')) {
+        toggleFullscreen();
+      }
+    });
+
+    function openCustomModal() {
+      document.getElementById('custom-modal').classList.remove('hidden');
+    }
+
+    function closeCustomModal() {
+      document.getElementById('custom-modal').classList.add('hidden');
+    }
+
+    function applyCustomFlight(e) {
+      e.preventDefault();
+      const liveryMap = {
+        virgin: 'Virgin Atlantic',
+        ba: 'British Airways',
+        emirates: 'Emirates',
+        easyjet: 'easyJet',
+        lufthansa: 'Lufthansa',
+        ryanair: 'Ryanair'
+      };
+      const liv = document.getElementById('cust-livery').value;
+      currentFlight = {
+        origin: document.getElementById('cust-orig').value.toUpperCase().trim(),
+        dest: document.getElementById('cust-dest').value.toUpperCase().trim(),
+        originCity: document.getElementById('cust-orig-city').value.trim(),
+        destCity: document.getElementById('cust-dest-city').value.trim(),
+        flight: document.getElementById('cust-flight').value.toUpperCase().trim(),
+        airline: liveryMap[liv] || 'Airline',
+        type: document.getElementById('cust-type').value.trim(),
+        reg: document.getElementById('cust-reg').value.toUpperCase().trim(),
+        livery: liv,
+        alt: parseInt(document.getElementById('cust-alt').value, 10) || 8500,
+        vspeed: 'climbing',
+        speed: parseInt(document.getElementById('cust-spd').value, 10) || 320,
+        dist: parseFloat(document.getElementById('cust-dist').value) || 4.5,
+        bearingDir: 'W',
+        bearingDeg: -90
+      };
+      autoCycle = false;
+      toggleAutoCycle();
+      toggleAutoCycle();
+      closeCustomModal();
+      updateDisplay(true);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      updateClock();
+      setInterval(updateClock, 10000);
+      updateDisplay(true);
+    });
+  </script>
+</body>
+</html>
