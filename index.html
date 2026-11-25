@@ -3,859 +3,1015 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AvioFrame • Live Split-Flap Overhead Flight Display</title>
+  <title>AvioFrame • Live ADS-B Radar & Overhead Flight Display</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #f3f4f6;
-      background-image: 
-        linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
-      background-size: 40px 40px;
-      color: #111827;
-      transition: background-color 0.3s ease;
-    }
-
-    body.dark-ambient {
       background-color: #0b0f17;
-      background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      color: #f8fafc;
+      color: #f1f5f9;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .font-flap {
+    body.light-theme {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+
+    .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
 
-    .frame-black {
-      background: linear-gradient(145deg, #27272a, #18181b 45%, #09090b);
-      box-shadow: 
-        0 30px 60px -15px rgba(0, 0, 0, 0.45),
-        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-        0 12px 24px rgba(0, 0, 0, 0.4);
+    /* Smooth card styling */
+    .avio-card {
+      background-color: #111622;
+      border: 1px solid #1e2638;
+      border-radius: 1.25rem;
     }
 
-    .frame-oak {
-      background: repeating-linear-gradient(
-        90deg,
-        #8c5a32 0px,
-        #7c4d28 3px,
-        #96633a 6px,
-        #784824 10px
-      );
-      box-shadow: 
-        0 30px 60px -15px rgba(0, 0, 0, 0.35),
-        0 0 0 1px rgba(255, 255, 255, 0.2) inset,
-        0 12px 24px rgba(0, 0, 0, 0.3);
+    body.light-theme .avio-card {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
     }
 
-    .frame-inner-bevel {
-      box-shadow: 
-        inset 0 4px 10px rgba(0, 0, 0, 0.85),
-        inset 0 -2px 4px rgba(255, 255, 255, 0.08);
+    .avio-subcard {
+      background-color: #161d2c;
+      border: 1px solid #232d42;
+      border-radius: 1rem;
     }
 
-    .eink-screen {
-      background-color: #f6f6f4;
-      background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 0);
-      background-size: 4px 4px;
-      box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.14);
-      color: #141413;
+    body.light-theme .avio-subcard {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
     }
 
-    .flap-tile {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(180deg, #2b2b2e 0%, #1c1c1e 49%, #121214 51%, #202022 100%);
-      color: #f8fafc;
-      border-radius: 4px;
-      box-shadow: 
-        0 2px 4px rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.14);
-      overflow: hidden;
-      user-select: none;
+    /* Gentle float animation for side-profile plane */
+    @keyframes planeHover {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+    .plane-float {
+      animation: planeHover 4s ease-in-out infinite;
     }
 
-    .flap-tile::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 50%;
-      height: 1.5px;
-      background: rgba(0, 0, 0, 0.75);
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
-      z-index: 10;
+    /* Radar sweep rotation */
+    @keyframes radarSweep {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .radar-sweep-line {
+      transform-origin: 180px 180px;
+      animation: radarSweep 6s linear infinite;
     }
 
-    .flap-tile::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 50%;
-      height: 4px;
-      transform: translateY(-50%);
-      border-left: 2px solid #09090b;
-      border-right: 2px solid #09090b;
-      z-index: 11;
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
     }
-
-    @keyframes flipTick {
-      0% { transform: rotateX(0deg); }
-      45% { transform: rotateX(-85deg); filter: brightness(0.6); }
-      55% { transform: rotateX(75deg); filter: brightness(1.2); }
-      100% { transform: rotateX(0deg); }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
     }
-
-    .animate-flap {
-      animation: flipTick 0.24s cubic-bezier(0.25, 0.8, 0.25, 1);
-      transform-style: preserve-3d;
-    }
-
-    @keyframes aircraftCruise {
-      0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-2.5px) rotate(-0.35deg); }
-    }
-
-    .aircraft-float {
-      animation: aircraftCruise 4.5s ease-in-out infinite;
-    }
-
-    body.fullscreen-mode header,
-    body.fullscreen-mode .control-dock {
-      display: none !important;
-    }
-    body.fullscreen-mode main {
-      padding: 0 !important;
-      max-width: 100% !important;
-      height: 100vh !important;
-    }
-    body.fullscreen-mode #physical-frame {
-      width: 100vw !important;
-      height: 100vh !important;
-      max-width: none !important;
-      border-radius: 0 !important;
-      padding: 18px !important;
+    ::-webkit-scrollbar-thumb {
+      background: #232d42;
+      border-radius: 9999px;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between">
+<body class="min-h-screen flex flex-col pb-24 selection:bg-sky-500 selection:text-white">
 
-  <!-- TOP HEADER -->
-  <header class="w-full max-w-6xl mx-auto px-4 sm:px-8 pt-5 pb-3 flex flex-wrap items-center justify-between gap-4">
-    <div class="flex items-center space-x-3">
-      <div class="flex items-center font-extrabold tracking-tighter text-xl sm:text-2xl select-none">
-        <span class="flex items-center">
-          AV<span class="relative inline-flex items-center justify-center mx-0.5"><i data-lucide="plane" class="w-4 h-4 -rotate-45 stroke-[2.6]"></i></span>O
-        </span>
-        <span class="ml-1.5 border-2 border-current px-1.5 py-0.5 text-sm sm:text-base tracking-widest font-black">FRAME</span>
+  <!-- TOP HEADER & STATUS BAR -->
+  <header class="w-full max-w-xl mx-auto px-4 pt-4 pb-3 sticky top-0 z-30 bg-[#0b0f17]/90 backdrop-blur-md">
+    <div class="flex items-center justify-between gap-2">
+      <!-- Brand + Live Pill -->
+      <div class="flex items-center space-x-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-white text-slate-950 font-black text-sm flex items-center justify-center shrink-0 shadow">
+          AF
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center space-x-2">
+            <span class="font-extrabold tracking-tight text-sm sm:text-base">AVIOFRAME</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate">
+              LIVE • FLIGHTRADAR24 • <span id="header-acft-count" class="ml-1">8 ACFT</span>
+            </span>
+          </div>
+          <button onclick="cycleLocation()" class="text-[11px] text-slate-400 hover:text-sky-400 flex items-center space-x-1 mt-0.5 truncate transition">
+            <span id="header-location-label">Southend-on-Sea, UK (EGMC) • 45 km</span>
+            <i data-lucide="chevron-down" class="w-3 h-3 shrink-0"></i>
+          </button>
+        </div>
       </div>
-      <span class="hidden sm:inline-block text-xs font-mono uppercase tracking-widest opacity-50 border-l border-current pl-3">Live Overhead Radar</span>
     </div>
 
-    <div class="flex items-center space-x-2.5">
-      <div class="relative">
-        <select id="location-select" onchange="changeLocation()" class="appearance-none bg-white/90 dark:bg-slate-900 border border-gray-300 text-gray-800 text-xs sm:text-sm font-medium rounded-full pl-4 pr-9 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-black cursor-pointer">
-          <option value="London">United Kingdom • London</option>
-          <option value="Southend-on-Sea">United Kingdom • Southend</option>
-          <option value="Manchester">United Kingdom • Manchester</option>
-          <option value="New York">United States • New York</option>
-          <option value="Frankfurt">Germany • Frankfurt</option>
-          <option value="Dubai">UAE • Dubai</option>
-        </select>
-        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-gray-500 absolute right-3 top-2.5 pointer-events-none"></i>
+    <!-- Action Pills Row -->
+    <div class="flex items-center justify-between gap-2 mt-3">
+      <button onclick="toggleLiveSim()" id="live-status-pill" class="px-3.5 py-1.5 rounded-full bg-[#161d2c] border border-[#232d42] text-xs font-semibold flex items-center space-x-2 hover:border-emerald-500/40 transition">
+        <span id="live-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="live-pill-text">Live ADS-B</span>
+      </button>
+
+      <div class="flex items-center space-x-1.5">
+        <button onclick="exportSnapshot()" title="Save Flight Card Summary" class="w-8 h-8 rounded-full bg-[#161d2c] border border-[#232d42] text-slate-300 hover:text-white flex items-center justify-center transition">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme" class="w-8 h-8 rounded-full bg-[#161d2c] border border-[#232d42] text-slate-300 hover:text-white flex items-center justify-center transition">
+          <i data-lucide="sun" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="toggleSound()" id="sound-toggle-btn" title="Toggle Radar Audio" class="w-8 h-8 rounded-full bg-[#161d2c] border border-[#232d42] text-slate-300 hover:text-white flex items-center justify-center transition">
+          <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="switchView('spotter')" title="Add Custom Flight / Spotter Settings" class="w-8 h-8 rounded-full bg-[#161d2c] border border-[#232d42] text-slate-300 hover:text-white flex items-center justify-center transition">
+          <i data-lucide="settings" class="w-3.5 h-3.5"></i>
+        </button>
       </div>
-
-      <button onclick="toggleSound()" id="sound-btn" title="Toggle Split-Flap Mechanical Sound" class="w-9 h-9 rounded-full bg-white border border-gray-300 text-gray-700 flex items-center justify-center shadow-sm hover:bg-gray-50 transition">
-        <i data-lucide="volume-2" class="w-4 h-4"></i>
-      </button>
-
-      <button onclick="toggleAmbientTheme()" id="theme-btn" title="Toggle Room Lighting" class="w-9 h-9 rounded-full bg-white border border-gray-300 text-gray-700 flex items-center justify-center shadow-sm hover:bg-gray-50 transition">
-        <i data-lucide="moon" class="w-4 h-4"></i>
-      </button>
     </div>
   </header>
 
-  <!-- CENTERPIECE HARDWARE FRAME -->
-  <main class="flex-1 flex flex-col items-center justify-center px-3 sm:px-6 py-4">
-    <div id="physical-frame" class="frame-black relative w-full max-w-[820px] rounded-xl sm:rounded-2xl p-5 sm:p-8 md:p-10 transition-all duration-500">
-      <div class="frame-inner-bevel bg-[#141416] p-1.5 sm:p-2 rounded-sm">
-        <div class="eink-screen w-full aspect-[16/10.3] rounded-[2px] p-4 sm:p-7 md:p-9 flex flex-col justify-between relative overflow-hidden">
-          
-          <!-- TOP TELEMETRY HEADER -->
-          <div class="flex items-start justify-between">
+  <!-- MAIN VIEWPORT -->
+  <main class="flex-1 w-full max-w-xl mx-auto px-4 space-y-4">
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: POSTER (MAIN OVERHEAD AIRCRAFT CARD) -->
+    <!-- ========================================== -->
+    <section id="view-poster" class="space-y-4">
+      <div class="avio-card p-5 space-y-5">
+        
+        <!-- Top Operator & Vertical Rate Pills -->
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center space-x-2">
+            <span id="poster-icao-pill" class="px-2.5 py-0.5 rounded-full bg-white text-slate-950 font-mono font-extrabold text-[11px] tracking-wider">
+              LGL
+            </span>
+            <span id="poster-vspeed-pill" class="px-3 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 font-mono font-semibold text-[11px]">
+              CLIMBING • +192 ft/min
+            </span>
+          </div>
+          <button onclick="logCurrentAircraft()" class="text-[11px] font-mono text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-full flex items-center space-x-1 transition">
+            <i data-lucide="bookmark-plus" class="w-3 h-3"></i>
+            <span>Log Catch</span>
+          </button>
+        </div>
+
+        <!-- Callsign & Aircraft Type -->
+        <div>
+          <h1 id="poster-callsign" class="text-3xl sm:text-4xl font-extrabold tracking-tight">LGL4L</h1>
+          <p id="poster-subtitle" class="text-xs sm:text-sm text-slate-400 mt-1">
+            De Havilland Dash 8-400 • Reg <span class="text-slate-200 font-semibold">LX-LQA</span>
+          </p>
+        </div>
+
+        <!-- Rounded Route Container -->
+        <div class="avio-subcard px-4 py-3.5 flex items-center justify-between">
+          <div>
+            <div id="poster-origin" class="text-xl sm:text-2xl font-extrabold tracking-tight">LCY</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Origin</div>
+          </div>
+
+          <div class="flex-1 px-4 text-center">
+            <div id="poster-route-dist" class="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1.5">
+              17.0 KM AWAY
+            </div>
+            <div class="relative flex items-center justify-center">
+              <div class="w-full h-[1px] bg-slate-700"></div>
+              <i data-lucide="plane" class="w-4 h-4 text-sky-400 absolute bg-[#161d2c] px-1 rotate-45"></i>
+            </div>
+          </div>
+
+          <div class="text-right">
+            <div id="poster-dest" class="text-xl sm:text-2xl font-extrabold tracking-tight">LUX</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Destination</div>
+          </div>
+        </div>
+
+        <!-- Clean Side-Profile Aircraft Illustration (No overflowing text) -->
+        <div class="py-3 flex items-center justify-center">
+          <div id="poster-plane-svg" class="w-full max-w-[380px] plane-float">
+            <!-- Rendered cleanly via JS -->
+          </div>
+        </div>
+
+        <!-- Nearby Overhead Aircraft Pills (2-Column Grid) -->
+        <div id="nearby-pills-grid" class="grid grid-cols-2 gap-2">
+          <!-- Rendered dynamically -->
+        </div>
+
+      </div>
+
+      <!-- 2x2 TELEMETRY CARDS -->
+      <div class="grid grid-cols-2 gap-3">
+        <!-- Altitude -->
+        <div class="avio-card p-4">
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">ALTITUDE</div>
+          <div class="flex items-baseline justify-between mt-2">
             <div>
-              <p class="text-[11px] sm:text-xs md:text-sm font-medium text-neutral-500 tracking-tight">
-                The sky over <span id="display-sky-location" class="text-neutral-700 font-semibold">London</span>:
-              </p>
-
-              <div class="flex items-center space-x-2 sm:space-x-3 mt-1.5 sm:mt-2">
-                <div id="flaps-origin" class="flex space-x-1"></div>
-                <span class="text-lg sm:text-2xl md:text-3xl font-bold text-neutral-800 px-0.5">&rarr;</span>
-                <div id="flaps-dest" class="flex space-x-1"></div>
-              </div>
-
-              <div class="flex items-center justify-between text-[10px] sm:text-xs font-semibold text-neutral-700 mt-1.5 px-0.5">
-                <span id="display-origin-city" class="truncate max-w-[110px] sm:max-w-[160px]">London</span>
-                <span id="display-dest-city" class="truncate max-w-[110px] sm:max-w-[160px] text-right">Miami</span>
-              </div>
+              <span id="tele-alt-m" class="text-2xl font-extrabold font-mono">3,947</span>
+              <div class="text-xs text-slate-400 font-mono">m</div>
             </div>
-
-            <div class="text-right flex items-center space-x-1.5 text-[10px] sm:text-xs font-mono text-neutral-500">
-              <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-              <span>Live <span id="display-clock" class="font-semibold text-neutral-700">10:40</span></span>
+            <div class="text-right text-xs font-mono text-slate-400">
+              <div id="tele-alt-ft">12,950</div>
+              <div>ft</div>
             </div>
           </div>
+        </div>
 
-          <!-- FLIGHT NUMBER & AIRCRAFT METADATA -->
-          <div class="flex flex-wrap items-center gap-2 sm:gap-2.5 mt-2 sm:mt-3">
-            <div id="flaps-flight" class="flex space-x-0.5"></div>
-            <p id="display-aircraft-meta" class="text-[10px] sm:text-xs md:text-[13px] font-medium text-neutral-700 tracking-tight">
-              Virgin Atlantic, Airbus A330-900neo, G-VTOM
-            </p>
-          </div>
-
-          <!-- AIRCRAFT SIDE-PROFILE LIVERY ILLUSTRATION -->
-          <div class="my-auto py-1 sm:py-2 flex items-center justify-center">
-            <div id="aircraft-svg-container" class="w-full max-w-[540px] aircraft-float transition-all duration-500"></div>
-          </div>
-
-          <!-- BOTTOM METRICS & COMPASS -->
-          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-neutral-300/60">
-            <div class="flex flex-wrap items-center gap-2.5 sm:gap-4">
-              <div class="flex items-center space-x-1.5">
-                <div id="flaps-alt" class="flex space-x-0.5"></div>
-                <span id="display-vspeed" class="text-[9px] sm:text-[11px] font-medium text-neutral-500">climbing</span>
-              </div>
-
-              <div class="flex items-center space-x-1">
-                <div id="flaps-speed" class="flex space-x-0.5"></div>
-              </div>
-
-              <div class="flex items-center space-x-1.5">
-                <div id="flaps-dist" class="flex space-x-0.5"></div>
-                <span class="text-[9px] sm:text-[11px] font-medium text-neutral-500">away</span>
-              </div>
+        <!-- Ground Speed -->
+        <div class="avio-card p-4">
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">GROUND SPEED</div>
+          <div class="flex items-baseline justify-between mt-2">
+            <div>
+              <span id="tele-spd-kmh" class="text-2xl font-extrabold font-mono">522</span>
+              <div class="text-xs text-slate-400 font-mono">km/h</div>
             </div>
-
-            <div class="flex items-center space-x-1.5 ml-auto">
-              <span id="display-bearing-dir" class="text-[10px] sm:text-xs font-extrabold text-neutral-800 font-mono">W</span>
-              <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-neutral-700 flex items-center justify-center relative bg-white/60">
-                <div id="compass-needle" class="w-full h-full flex items-center justify-center transition-transform duration-700" style="transform: rotate(-90deg);">
-                  <div class="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[8px] border-b-neutral-900 -translate-y-1"></div>
-                </div>
-                <div class="w-1 h-1 rounded-full bg-neutral-900 absolute"></div>
-              </div>
+            <div class="text-right text-xs font-mono text-slate-400">
+              <div id="tele-spd-kts">282</div>
+              <div>kts</div>
             </div>
           </div>
+        </div>
 
+        <!-- Distance & Bearing -->
+        <div class="avio-card p-4">
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">DISTANCE & BEARING</div>
+          <div class="flex items-baseline justify-between mt-2">
+            <div>
+              <span id="tele-dist-km" class="text-2xl font-extrabold font-mono text-sky-400">17</span>
+              <div class="text-xs text-sky-400 font-mono">km</div>
+            </div>
+            <div class="text-right text-[11px] font-mono text-slate-400">
+              <div id="tele-dist-nm">9.2 nm •</div>
+              <div id="tele-bearing">195° SSW</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Track / Squawk -->
+        <div class="avio-card p-4">
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">TRACK / SQUAWK</div>
+          <div class="flex items-baseline justify-between mt-2">
+            <div>
+              <span id="tele-track" class="text-2xl font-extrabold font-mono">129°</span>
+            </div>
+            <div class="text-right text-xs font-mono text-slate-400">
+              <div>SQK <span id="tele-squawk" class="text-slate-300">4412</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: RADAR (INTERACTIVE ATC SCOPE)      -->
+    <!-- ========================================== -->
+    <section id="view-radar" class="hidden space-y-4">
+      <div class="avio-card p-4 flex flex-col items-center">
+        <div class="w-full max-w-[360px] aspect-square relative">
+          <svg id="atc-radar-svg" viewBox="0 0 360 360" class="w-full h-full select-none">
+            <!-- Radar Background -->
+            <circle cx="180" cy="180" r="165" fill="#091316" stroke="#163832" stroke-width="1.5"/>
+            <circle cx="180" cy="180" r="110" fill="none" stroke="#132e2a" stroke-width="1" stroke-dasharray="3 3"/>
+            <circle cx="180" cy="180" r="55" fill="none" stroke="#132e2a" stroke-width="1" stroke-dasharray="3 3"/>
+
+            <!-- Crosshairs -->
+            <line x1="180" y1="15" x2="180" y2="345" stroke="#132e2a" stroke-width="1"/>
+            <line x1="15" y1="180" x2="345" y2="180" stroke="#132e2a" stroke-width="1"/>
+
+            <!-- Sweep Wedge -->
+            <g class="radar-sweep-line">
+              <line x1="180" y1="180" x2="345" y2="180" stroke="#10b981" stroke-width="1.5" opacity="0.7"/>
+            </g>
+
+            <!-- Range & Cardinal Labels -->
+            <text x="180" y="28" text-anchor="middle" fill="#10b981" font-family="JetBrains Mono" font-size="9">N 45km</text>
+            <text x="180" y="75" text-anchor="middle" fill="#059669" font-family="JetBrains Mono" font-size="8">30km</text>
+            <text x="180" y="130" text-anchor="middle" fill="#059669" font-family="JetBrains Mono" font-size="8">15km</text>
+            <text x="180" y="338" text-anchor="middle" fill="#10b981" font-family="JetBrains Mono" font-size="9">S</text>
+            <text x="24" y="183" text-anchor="start" fill="#10b981" font-family="JetBrains Mono" font-size="9">W</text>
+            <text x="336" y="183" text-anchor="end" fill="#10b981" font-family="JetBrains Mono" font-size="9">E</text>
+
+            <!-- Center Airport Marker -->
+            <rect x="176" y="176" width="8" height="8" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+            <text id="radar-center-icao" x="187" y="183" fill="#f59e0b" font-family="JetBrains Mono" font-size="9" font-weight="bold">EGMC</text>
+
+            <!-- Dynamic Targets Layer -->
+            <g id="radar-targets-layer"></g>
+          </svg>
+        </div>
+
+        <!-- Radar Legend -->
+        <div class="w-full grid grid-cols-3 gap-2 pt-3 mt-2 border-t border-slate-800 text-[9px] font-mono text-slate-400">
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block shrink-0"></span>
+            <span>AIRCRAFT TARGET</span>
+          </div>
+          <div class="flex items-center space-x-1.5">
+            <span class="w-2.5 h-2.5 border border-amber-400 inline-block shrink-0"></span>
+            <span id="radar-legend-apt">AIRFIELD (EGMC)</span>
+          </div>
+          <div class="text-right text-slate-300">
+            TAP TARGET TO INSPECT
+          </div>
         </div>
       </div>
 
-      <div class="text-center mt-2.5 sm:mt-3.5 select-none">
-        <span class="font-flap text-[10px] sm:text-xs tracking-[0.42em] text-neutral-400/75 font-semibold uppercase">AVIOFRAME</span>
-      </div>
-    </div>
+      <!-- ATC Target Telemetry Bottom Card -->
+      <div class="avio-card p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">ATC TARGET TELEMETRY</span>
+          <span id="radar-tracks-badge" class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-bold">
+            8 TRACKS
+          </span>
+        </div>
 
-    <button id="exit-fullscreen-btn" onclick="toggleFullscreen()" class="hidden fixed top-5 right-5 z-50 bg-black/80 text-white text-xs font-mono px-3.5 py-2 rounded-full border border-white/20 backdrop-blur-md hover:bg-black">
-      Exit Fullscreen (ESC)
-    </button>
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 id="radar-detail-callsign" class="text-2xl font-extrabold font-mono">LGL4L</h2>
+            <p id="radar-detail-airline" class="text-xs font-mono font-bold text-emerald-400 uppercase mt-0.5">LUXAIR</p>
+          </div>
+          <div class="text-right font-mono">
+            <div id="radar-detail-dist" class="text-xl font-extrabold text-amber-400">17.0 km</div>
+            <div id="radar-detail-brg" class="text-[11px] text-slate-400">BRG 195° (SSW)</div>
+          </div>
+        </div>
+
+        <div class="avio-subcard p-3.5">
+          <div class="text-[10px] font-mono uppercase text-slate-400 mb-1">AIRCRAFT / ROUTE</div>
+          <div id="radar-detail-type" class="text-sm font-bold">De Havilland Dash 8-400 (LX-LQA)</div>
+          <div id="radar-detail-route" class="text-xs font-mono text-sky-400 mt-0.5">LCY (Origin) &rarr; LUX (Destination)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: BOARD (LOCAL AIRSPACE OVERHEAD)    -->
+    <!-- ========================================== -->
+    <section id="view-board" class="hidden space-y-4">
+      <div class="avio-card p-5 space-y-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <h2 class="font-mono font-extrabold text-sm sm:text-base tracking-wide text-amber-400 uppercase">
+              LOCAL AIRSPACE OVERHEAD BOARD
+            </h2>
+          </div>
+          <p class="text-[10px] font-mono text-slate-400 mt-1">
+            SORTED BY PROXIMITY • TAP ROW FOR POSTER VIEW
+          </p>
+        </div>
+
+        <div id="overhead-board-list" class="space-y-2.5">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500">
+          <div>SOURCE: AVIOFRAME ADS-B FEED (SIMULATED & CUSTOM)</div>
+          <div>LAST SCAN: <span id="board-scan-time">20:57:31</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 4: SPOTTER (LOGBOOK & CUSTOM FLIGHT)  -->
+    <!-- ========================================== -->
+    <section id="view-spotter" class="hidden space-y-4">
+      
+      <!-- Add Custom Flight Form Card -->
+      <div class="avio-card p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-extrabold flex items-center space-x-2">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-sky-400"></i>
+              <span>Add Custom Overhead Flight</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Inject any aircraft onto the Poster, Radar, and Board</p>
+          </div>
+        </div>
+
+        <form onsubmit="addCustomAircraft(event)" class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Callsign *</label>
+              <input type="text" id="cust-callsign" required placeholder="e.g. VIR2" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-3 py-2 font-mono font-bold uppercase focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Registration *</label>
+              <input type="text" id="cust-reg" required placeholder="e.g. G-VTOM" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-3 py-2 font-mono uppercase focus:outline-none focus:border-sky-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Airline Name *</label>
+              <input type="text" id="cust-airline" required placeholder="e.g. Virgin Atlantic" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Aircraft Type *</label>
+              <input type="text" id="cust-type" required placeholder="e.g. Airbus A330-900neo" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Origin *</label>
+              <input type="text" id="cust-origin" required maxlength="4" placeholder="LHR" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-3 py-2 font-mono uppercase focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Dest *</label>
+              <input type="text" id="cust-dest" required maxlength="4" placeholder="MIA" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-3 py-2 font-mono uppercase focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Tail Color</label>
+              <select id="cust-color" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-2.5 py-2 focus:outline-none focus:border-sky-500">
+                <option value="#0ea5e9">Sky Blue</option>
+                <option value="#dc2626">Crimson Red</option>
+                <option value="#1e3a8a">Navy Blue</option>
+                <option value="#ea580c">Orange</option>
+                <option value="#10b981">Emerald</option>
+                <option value="#eab308">Gold</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Altitude (ft)</label>
+              <input type="number" id="cust-alt-ft" value="12500" min="500" max="45000" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-2.5 py-2 font-mono focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Speed (kts)</label>
+              <input type="number" id="cust-spd-kts" value="285" min="80" max="650" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-2.5 py-2 font-mono focus:outline-none focus:border-sky-500">
+            </div>
+            <div>
+              <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Distance (km)</label>
+              <input type="number" id="cust-dist-km" value="14.2" step="0.1" min="0.5" max="45" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-2.5 py-2 font-mono focus:outline-none focus:border-sky-500">
+            </div>
+          </div>
+
+          <button type="submit" class="w-full py-2.5 rounded-xl bg-white text-slate-950 font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition shadow">
+            Add Aircraft to Live Sky
+          </button>
+        </form>
+      </div>
+
+      <!-- Personal Spotter Logbook -->
+      <div class="avio-card p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-extrabold">My Spotted Logbook</h3>
+            <p class="text-[11px] text-slate-400">Saved locally on this device</p>
+          </div>
+          <span id="spotter-log-count" class="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-mono text-xs font-bold">
+            0 LOGGED
+          </span>
+        </div>
+
+        <div id="spotter-logbook-list" class="space-y-2">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+    </section>
+
   </main>
 
-  <!-- BOTTOM CONTROL DOCK -->
-  <div class="control-dock w-full max-w-4xl mx-auto px-4 pb-6 pt-2">
-    <div class="bg-white/95 backdrop-blur-md border border-gray-200/90 shadow-lg rounded-2xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
-      
-      <div class="flex items-center space-x-2">
-        <button onclick="prevFlight()" class="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition" title="Previous Flight">
-          <i data-lucide="chevron-left" class="w-4 h-4"></i>
-        </button>
-        <div class="px-2">
-          <div class="text-[10px] font-mono uppercase text-gray-400">Overhead Traffic</div>
-          <div id="dock-flight-label" class="text-xs sm:text-sm font-bold text-gray-800">1 / 6 • VS2 (Virgin Atlantic)</div>
-        </div>
-        <button onclick="nextFlight()" class="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition" title="Next Overhead Flight">
-          <i data-lucide="chevron-right" class="w-4 h-4"></i>
-        </button>
-      </div>
+  <!-- BOTTOM NAVIGATION BAR (UNDER THE RED LINE) -->
+  <nav class="fixed bottom-0 inset-x-0 z-40 bg-[#0b0f17]/95 backdrop-blur-lg border-t border-[#1e2638] px-3 py-2.5">
+    <div class="max-w-xl mx-auto flex items-center justify-between gap-1.5">
+      <button id="nav-poster" onclick="switchView('poster')" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 bg-white text-slate-950 shadow transition">
+        <i data-lucide="image" class="w-3.5 h-3.5"></i>
+        <span>Poster</span>
+      </button>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <button onclick="toggleAutoCycle()" id="auto-cycle-btn" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1.5 hover:bg-emerald-100 transition">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>Live Radar: ON</span>
-        </button>
+      <button id="nav-radar" onclick="switchView('radar')" class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 text-slate-400 hover:text-white transition">
+        <i data-lucide="radar" class="w-3.5 h-3.5"></i>
+        <span>Radar</span>
+      </button>
 
-        <button onclick="toggleFrameMaterial()" id="frame-style-btn" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center space-x-1.5 transition">
-          <i data-lucide="frame" class="w-3.5 h-3.5"></i>
-          <span>Oak Frame</span>
-        </button>
+      <button id="nav-board" onclick="switchView('board')" class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 text-slate-400 hover:text-white transition">
+        <i data-lucide="align-justify" class="w-3.5 h-3.5"></i>
+        <span>Board</span>
+      </button>
 
-        <button onclick="openCustomModal()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 hover:bg-black text-white flex items-center space-x-1.5 transition">
-          <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
-          <span>Custom Flight</span>
-        </button>
+      <button id="nav-spotter" onclick="switchView('spotter')" class="flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 text-slate-400 hover:text-white transition">
+        <i data-lucide="clipboard-list" class="w-3.5 h-3.5"></i>
+        <span>Spotter</span>
+      </button>
 
-        <button onclick="toggleFullscreen()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-black flex items-center space-x-1.5 transition">
-          <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
-          <span>Fullscreen</span>
-        </button>
-      </div>
+      <button onclick="refreshTelemetry()" title="Refresh Scan" class="p-2 rounded-xl text-slate-400 hover:text-white transition">
+        <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+      </button>
     </div>
-  </div>
-
-  <!-- CUSTOM FLIGHT EDITOR MODAL -->
-  <div id="custom-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200 text-gray-900">
-      <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
-        <h3 class="font-bold text-base flex items-center space-x-2">
-          <i data-lucide="plane" class="w-4 h-4 text-amber-500"></i>
-          <span>Set Custom Overhead Flight</span>
-        </h3>
-        <button onclick="closeCustomModal()" class="text-gray-400 hover:text-gray-700">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-
-      <form onsubmit="applyCustomFlight(event)" class="space-y-3 text-xs">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Origin IATA *</label>
-            <input type="text" id="cust-orig" required maxlength="3" placeholder="LHR" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono font-bold">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Destination IATA *</label>
-            <input type="text" id="cust-dest" required maxlength="3" placeholder="MIA" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono font-bold">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Origin City</label>
-            <input type="text" id="cust-orig-city" required placeholder="London" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Destination City</label>
-            <input type="text" id="cust-dest-city" required placeholder="Miami" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Flight Number *</label>
-            <input type="text" id="cust-flight" required maxlength="6" placeholder="VS2" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono font-bold">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Airline Livery *</label>
-            <select id="cust-livery" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white">
-              <option value="virgin">Virgin Atlantic</option>
-              <option value="ba">British Airways</option>
-              <option value="emirates">Emirates</option>
-              <option value="easyjet">easyJet</option>
-              <option value="lufthansa">Lufthansa</option>
-              <option value="ryanair">Ryanair</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Aircraft Type</label>
-            <input type="text" id="cust-type" required placeholder="Airbus A330-900neo" class="w-full border border-gray-300 rounded-lg px-3 py-2">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Tail Registration</label>
-            <input type="text" id="cust-reg" required placeholder="G-VTOM" class="w-full border border-gray-300 rounded-lg px-3 py-2 uppercase font-mono">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2">
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Altitude (FT)</label>
-            <input type="number" id="cust-alt" required value="8530" min="500" max="45000" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 font-mono">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Speed (MPH)</label>
-            <input type="number" id="cust-spd" required value="323" min="100" max="700" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 font-mono">
-          </div>
-          <div>
-            <label class="block font-semibold text-gray-600 mb-1">Distance (MI)</label>
-            <input type="number" id="cust-dist" required value="4.6" step="0.1" min="0.1" max="50" class="w-full border border-gray-300 rounded-lg px-2.5 py-2 font-mono">
-          </div>
-        </div>
-
-        <div class="pt-3 flex justify-end space-x-2">
-          <button type="button" onclick="closeCustomModal()" class="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold">Cancel</button>
-          <button type="submit" class="px-5 py-2 rounded-xl bg-black text-white font-semibold hover:bg-gray-800">Update Frame</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  </nav>
 
   <script>
-    const PRESET_FLIGHTS = [
+    const LOCATIONS = [
+      { label: 'Southend-on-Sea, UK (EGMC) • 45 km', icao: 'EGMC' },
+      { label: 'London Heathrow, UK (EGLL) • 45 km', icao: 'EGLL' },
+      { label: 'London Stansted, UK (EGSS) • 45 km', icao: 'EGSS' },
+      { label: 'Manchester, UK (EGCC) • 45 km', icao: 'EGCC' }
+    ];
+    let currentLocationIdx = 0;
+
+    let aircraftList = [
       {
-        origin: 'LHR',
-        dest: 'MIA',
-        originCity: 'London',
-        destCity: 'Miami',
-        flight: 'VS2',
-        airline: 'Virgin Atlantic',
-        type: 'Airbus A330-900neo',
-        reg: 'G-VTOM',
-        livery: 'virgin',
-        alt: 8530,
-        vspeed: 'climbing',
-        speed: 323,
-        dist: 4.6,
-        bearingDir: 'W',
-        bearingDeg: -90
+        id: 'ac1',
+        icao: 'LGL',
+        callsign: 'LGL4L',
+        airline: 'Luxair',
+        type: 'De Havilland Dash 8-400',
+        reg: 'LX-LQA',
+        origin: 'LCY',
+        dest: 'LUX',
+        altFt: 12950,
+        vrate: 192,
+        spdKts: 282,
+        distKm: 17.0,
+        bearingDeg: 195,
+        bearingCard: 'SSW',
+        track: 129,
+        squawk: '4412',
+        tailColor: '#0ea5e9',
+        stripeColor: '#38bdf8',
+        angle: 105,
+        radiusRatio: 0.38
       },
       {
-        origin: 'LHR',
-        dest: 'JFK',
-        originCity: 'London',
-        destCity: 'New York',
-        flight: 'BA117',
-        airline: 'British Airways',
+        id: 'ac2',
+        icao: 'TAM',
+        callsign: 'TAM8079',
+        airline: 'LATAM Airlines',
         type: 'Boeing 777-300ER',
-        reg: 'G-STBA',
-        livery: 'ba',
-        alt: 12450,
-        vspeed: 'climbing',
-        speed: 388,
-        dist: 6.2,
-        bearingDir: 'NW',
-        bearingDeg: -45
+        reg: 'PT-MUA',
+        origin: 'LHR',
+        dest: 'GRU',
+        altFt: 31000,
+        vrate: 0,
+        spdKts: 472,
+        distKm: 17.2,
+        bearingDeg: 220,
+        bearingCard: 'SW',
+        track: 215,
+        squawk: '6201',
+        tailColor: '#dc2626',
+        stripeColor: '#1e3a8a',
+        angle: 130,
+        radiusRatio: 0.39
       },
       {
-        origin: 'DXB',
-        dest: 'LHR',
-        originCity: 'Dubai',
-        destCity: 'London',
-        flight: 'EK1',
-        airline: 'Emirates',
-        type: 'Airbus A380-800',
-        reg: 'A6-EEU',
-        livery: 'emirates',
-        alt: 7200,
-        vspeed: 'descending',
-        speed: 265,
-        dist: 3.1,
-        bearingDir: 'E',
-        bearingDeg: 90
-      },
-      {
-        origin: 'SEN',
-        dest: 'AGP',
-        originCity: 'Southend',
-        destCity: 'Malaga',
-        flight: 'U28412',
-        airline: 'easyJet',
+        id: 'ac3',
+        icao: 'SAS',
+        callsign: 'SAS70Y',
+        airline: 'Scandinavian Airlines',
         type: 'Airbus A320neo',
-        reg: 'G-UZHA',
-        livery: 'easyjet',
-        alt: 6420,
-        vspeed: 'climbing',
-        speed: 294,
-        dist: 2.4,
-        bearingDir: 'S',
-        bearingDeg: 180
-      },
-      {
-        origin: 'FRA',
+        reg: 'SE-ROA',
+        origin: 'ARN',
         dest: 'LHR',
-        originCity: 'Frankfurt',
-        destCity: 'London',
-        flight: 'LH904',
-        airline: 'Lufthansa',
-        type: 'Airbus A321neo',
-        reg: 'D-AIEA',
-        livery: 'lufthansa',
-        alt: 9100,
-        vspeed: 'descending',
-        speed: 281,
-        dist: 5.8,
-        bearingDir: 'SE',
-        bearingDeg: 135
+        altFt: 18400,
+        vrate: -850,
+        spdKts: 340,
+        distKm: 20.5,
+        bearingDeg: 45,
+        bearingCard: 'NE',
+        track: 242,
+        squawk: '1420',
+        tailColor: '#1d4ed8',
+        stripeColor: '#60a5fa',
+        angle: -45,
+        radiusRatio: 0.46
       },
       {
-        origin: 'STN',
-        dest: 'DUB',
-        originCity: 'London Stansted',
-        destCity: 'Dublin',
-        flight: 'FR205',
+        id: 'ac4',
+        icao: 'RYR',
+        callsign: 'RYR5TJ',
         airline: 'Ryanair',
-        type: 'Boeing 737 MAX 8-200',
-        reg: 'EI-HGF',
-        livery: 'ryanair',
-        alt: 18500,
-        vspeed: 'climbing',
-        speed: 412,
-        dist: 8.9,
-        bearingDir: 'NW',
-        bearingDeg: -55
+        type: 'Boeing 737-800',
+        reg: 'EI-DCL',
+        origin: 'STN',
+        dest: 'ALC',
+        altFt: 24100,
+        vrate: 1120,
+        spdKts: 398,
+        distKm: 23.4,
+        bearingDeg: 285,
+        bearingCard: 'WNW',
+        track: 168,
+        squawk: '5211',
+        tailColor: '#1e40af',
+        stripeColor: '#facc15',
+        angle: 195,
+        radiusRatio: 0.52
+      },
+      {
+        id: 'ac5',
+        icao: 'EZY',
+        callsign: 'EZY73EB',
+        airline: 'easyJet',
+        type: 'Airbus A319-100',
+        reg: 'G-EZAX',
+        origin: 'SEN',
+        dest: 'AMS',
+        altFt: 9800,
+        vrate: 1450,
+        spdKts: 265,
+        distKm: 24.6,
+        bearingDeg: 88,
+        bearingCard: 'E',
+        track: 84,
+        squawk: '7341',
+        tailColor: '#ea580c',
+        stripeColor: '#fb923c',
+        angle: -2,
+        radiusRatio: 0.55
+      },
+      {
+        id: 'ac6',
+        icao: 'BAW',
+        callsign: 'BAW447X',
+        airline: 'British Airways',
+        type: 'Airbus A320neo',
+        reg: 'G-TTNI',
+        origin: 'AMS',
+        dest: 'LHR',
+        altFt: 13120,
+        vrate: -640,
+        spdKts: 339,
+        distKm: 15.8,
+        bearingDeg: 4,
+        bearingCard: 'N',
+        track: 268,
+        squawk: '3104',
+        tailColor: '#1e3a8a',
+        stripeColor: '#dc2626',
+        angle: -86,
+        radiusRatio: 0.35
+      },
+      {
+        id: 'ac7',
+        icao: 'BEL',
+        callsign: 'BEL5BJ',
+        airline: 'Brussels Airlines',
+        type: 'Airbus A319-100',
+        reg: 'OO-SSV',
+        origin: 'BRU',
+        dest: 'MAN',
+        altFt: 33975,
+        vrate: 0,
+        spdKts: 384,
+        distKm: 15.8,
+        bearingDeg: 95,
+        bearingCard: 'E',
+        track: 293,
+        squawk: '2215',
+        tailColor: '#1d4ed8',
+        stripeColor: '#ef4444',
+        angle: 5,
+        radiusRatio: 0.35
+      },
+      {
+        id: 'ac8',
+        icao: 'KLM',
+        callsign: 'KLM49W',
+        airline: 'KLM Royal Dutch',
+        type: 'Embraer E195-E2',
+        reg: 'PH-NXL',
+        origin: 'AMS',
+        dest: 'BHX',
+        altFt: 32000,
+        vrate: 0,
+        spdKts: 425,
+        distKm: 16.4,
+        bearingDeg: 112,
+        bearingCard: 'ESE',
+        track: 267,
+        squawk: '2140',
+        tailColor: '#0284c7',
+        stripeColor: '#38bdf8',
+        angle: 22,
+        radiusRatio: 0.36
       }
     ];
 
-    let currentIndex = 0;
-    let currentFlight = { ...PRESET_FLIGHTS[0] };
-    let autoCycle = true;
-    let soundEnabled = false;
-    let isOakFrame = false;
-    let isDarkAmbient = false;
-    let audioCtx = null;
+    let selectedId = 'ac1';
+    let liveSim = true;
+    let isLight = false;
+    let soundOn = false;
+    let spottedLogs = JSON.parse(localStorage.getItem('avioframe_spotter_logs') || '[]');
 
-    function playFlapClick() {
-      if (!soundEnabled) return;
-      try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(160 + Math.random() * 60, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(45, audioCtx.currentTime + 0.035);
-        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.035);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.04);
-      } catch (e) {}
-    }
-
-    function renderAircraftSVG(liveryKey) {
-      const configs = {
-        virgin: {
-          tailColor: '#b91c1c',
-          tailAccent: '#7f1d1d',
-          engineColor: '#b91c1c',
-          bellyColor: '#d4d4d8',
-          title: 'virgin atlantic',
-          titleColor: '#991b1b',
-          titleFont: 'font-family: Inter, sans-serif; font-weight: 700; letter-spacing: -0.5px;',
-          tailText: 'Virgin',
-          isWidebody: true
-        },
-        ba: {
-          tailColor: '#1e3a8a',
-          tailAccent: '#dc2626',
-          engineColor: '#1e3a8a',
-          bellyColor: '#1e3a8a',
-          title: 'BRITISH AIRWAYS',
-          titleColor: '#1e3a8a',
-          titleFont: 'font-family: Inter, sans-serif; font-weight: 800; letter-spacing: 0.8px; font-size: 13px;',
-          tailText: '',
-          isWidebody: true
-        },
-        emirates: {
-          tailColor: '#dc2626',
-          tailAccent: '#15803d',
-          engineColor: '#f4f4f5',
-          bellyColor: '#e4e4e7',
-          title: 'Emirates',
-          titleColor: '#b45309',
-          titleFont: 'font-family: Georgia, serif; font-weight: 700; letter-spacing: 0.5px; font-size: 18px;',
-          tailText: '',
-          isWidebody: true
-        },
-        easyjet: {
-          tailColor: '#ea580c',
-          tailAccent: '#f97316',
-          engineColor: '#ea580c',
-          bellyColor: '#e4e4e7',
-          title: 'easyJet',
-          titleColor: '#ea580c',
-          titleFont: 'font-family: Inter, sans-serif; font-weight: 800; letter-spacing: -0.5px; font-size: 17px;',
-          tailText: '',
-          isWidebody: false
-        },
-        lufthansa: {
-          tailColor: '#0f172a',
-          tailAccent: '#eab308',
-          engineColor: '#0f172a',
-          bellyColor: '#e4e4e7',
-          title: 'Lufthansa',
-          titleColor: '#0f172a',
-          titleFont: 'font-family: Inter, sans-serif; font-weight: 700; letter-spacing: 0.2px; font-size: 16px;',
-          tailText: '',
-          isWidebody: false
-        },
-        ryanair: {
-          tailColor: '#1d4ed8',
-          tailAccent: '#facc15',
-          engineColor: '#1d4ed8',
-          bellyColor: '#1d4ed8',
-          title: 'RYANAIR',
-          titleColor: '#1d4ed8',
-          titleFont: 'font-family: Inter, sans-serif; font-weight: 900; letter-spacing: 1px; font-size: 15px;',
-          tailText: '',
-          isWidebody: false
-        }
-      };
-
-      const c = configs[liveryKey] || configs.virgin;
-
-      let windows = '';
-      for (let x = 135; x <= 395; x += 7) {
-        if (x === 212 || x === 338) continue;
-        windows += `<rect x="${x}" y="89" width="3.2" height="4.5" rx="1.2" fill="#27272a" opacity="0.85"/>`;
+    // Clean, minimal side-profile SVG matching screenshot (no oversized overflowing text)
+    function renderCleanSideProfile(tailColor = '#0ea5e9', stripeColor = '#38bdf8') {
+      let dots = '';
+      for (let x = 108; x <= 298; x += 9) {
+        dots += `<circle cx="${x}" cy="58" r="1.6" fill="#1e293b"/>`;
       }
-
       return `
-        <svg viewBox="0 0 560 155" class="w-full h-auto drop-shadow-md" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="fuselageGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#ffffff"/>
-              <stop offset="68%" stop-color="#f4f4f5"/>
-              <stop offset="100%" stop-color="#a1a1aa"/>
-            </linearGradient>
-            <linearGradient id="bellyGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="${c.bellyColor}"/>
-              <stop offset="100%" stop-color="#52525b"/>
-            </linearGradient>
-            <linearGradient id="engineGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="${c.engineColor}"/>
-              <stop offset="65%" stop-color="${c.engineColor}"/>
-              <stop offset="100%" stop-color="#18181b"/>
-            </linearGradient>
-          </defs>
-
-          <path d="M 435 80 L 505 14 L 535 14 L 495 85 Z" fill="${c.tailColor}" stroke="#27272a" stroke-width="0.6"/>
-          <path d="M 455 82 L 512 28 L 530 28 L 490 85 Z" fill="${c.tailAccent}" opacity="0.45"/>
-          ${c.tailText ? `<text x="488" y="64" fill="#ffffff" font-family="Georgia, serif" font-style="italic" font-weight="bold" font-size="16" transform="rotate(-24 488 64)">${c.tailText}</text>` : ''}
-
-          <path d="M 488 94 L 542 97 L 540 102 L 484 101 Z" fill="#a1a1aa" stroke="#3f3f46" stroke-width="0.6"/>
-
-          <path d="M 38 102 C 38 89, 75 76, 125 76 L 435 76 L 526 91 C 532 92, 532 97, 524 99 L 442 112 L 118 112 C 65 112, 38 108, 38 102 Z" fill="url(#fuselageGrad)" stroke="#3f3f46" stroke-width="0.8"/>
-
-          <path d="M 65 103 L 445 103 L 438 112 L 118 112 C 88 112, 70 108, 65 103 Z" fill="url(#bellyGrad)" opacity="0.9"/>
-
-          <path d="M 52 93 L 66 87 L 78 87 L 76 94 L 55 95 Z" fill="#18181b"/>
-          <line x1="65" y1="87" x2="64" y2="94" stroke="#f4f4f5" stroke-width="1"/>
-          <line x1="72" y1="87" x2="71" y2="94" stroke="#f4f4f5" stroke-width="1"/>
-
-          <rect x="114" y="84" width="11" height="22" rx="3" fill="none" stroke="#52525b" stroke-width="0.8"/>
-          <rect x="412" y="84" width="10" height="20" rx="3" fill="none" stroke="#52525b" stroke-width="0.8"/>
-
-          ${windows}
-
-          <text x="148" y="84" fill="${c.titleColor}" style="${c.titleFont}" font-size="16">${c.title}</text>
-          <text x="415" y="81" fill="#3f3f46" font-family="JetBrains Mono, monospace" font-size="6.5" font-weight="bold">${currentFlight.reg}</text>
-
-          <path d="M 235 105 L 330 105 L 368 116 L 265 117 Z" fill="#d4d4d8" stroke="#3f3f46" stroke-width="0.8"/>
-          <path d="M 245 107 L 348 114 L 345 116 L 242 109 Z" fill="#71717a"/>
-          ${c.isWidebody ? `<path d="M 365 116 L 373 107 L 376 107 L 369 116 Z" fill="${c.tailColor}"/>` : ''}
-
-          <path d="M 205 108 L 244 108 C 249 108, 251 113, 251 118 C 251 123, 249 127, 244 127 L 205 127 C 201 127, 200 122, 200 117.5 C 200 113, 201 108, 205 108 Z" fill="url(#engineGrad)" stroke="#18181b" stroke-width="0.8"/>
-          <path d="M 244 109 L 258 112 L 258 123 L 244 126 Z" fill="#71717a" stroke="#27272a" stroke-width="0.6"/>
-          <ellipse cx="202" cy="117.5" rx="2.5" ry="9" fill="#18181b"/>
+        <svg viewBox="0 0 380 105" class="w-full h-auto drop-shadow-lg" xmlns="http://www.w3.org/2000/svg">
+          <!-- Tail Fin -->
+          <path d="M 48 52 L 32 14 L 58 14 L 85 52 Z" fill="${tailColor}"/>
+          <!-- Horizontal Stabilizer -->
+          <path d="M 32 63 L 16 58 L 22 66 L 45 67 Z" fill="#94a3b8"/>
+          <!-- Main Fuselage Body -->
+          <path d="M 44 63 C 44 53, 66 47, 96 47 L 302 47 C 332 47, 355 58, 362 65 C 364 67, 361 71, 354 71 L 90 71 C 62 71, 44 68, 44 63 Z" fill="#f8fafc"/>
+          <!-- Colored Belly Cheatline -->
+          <path d="M 52 65 L 357 65 C 359 68, 357 71, 352 71 L 90 71 C 66 71, 55 68, 52 65 Z" fill="${stripeColor}"/>
+          <!-- Cockpit Windshield -->
+          <path d="M 325 52 L 341 53 L 347 58 L 325 58 Z" fill="#0f172a"/>
+          <!-- Passenger Windows -->
+          ${dots}
+          <!-- Swept Wing -->
+          <path d="M 178 65 L 136 78 L 154 78 L 214 65 Z" fill="#cbd5e1"/>
+          <!-- Underwing Engine -->
+          <rect x="195" y="69" width="28" height="10" rx="4" fill="#e2e8f0" stroke="#475569" stroke-width="1"/>
+          <rect x="195" y="69" width="6" height="10" rx="2" fill="${tailColor}"/>
+          <rect x="219" y="69" width="4" height="10" rx="1" fill="#334155"/>
         </svg>
       `;
     }
 
-    function renderFlapGroup(containerId, text, sizeClass = 'w-8 h-11 sm:w-11 sm:h-14 text-2xl sm:text-3xl', triggerAnim = true) {
-      const container = document.getElementById(containerId);
-      if (!container) return;
-      const chars = String(text).split('');
-      container.innerHTML = chars.map((ch, idx) => `
-        <span class="flap-tile font-flap font-extrabold ${sizeClass} ${triggerAnim ? 'animate-flap' : ''}" style="animation-delay: ${idx * 35}ms">
-          ${ch === ' ' ? '&nbsp;' : ch}
-        </span>
-      `).join('');
-    }
-
-    function updateDisplay(triggerAnim = true) {
-      if (triggerAnim) playFlapClick();
-
-      const f = currentFlight;
-      document.getElementById('display-sky-location').textContent = document.getElementById('location-select').value;
-      document.getElementById('display-origin-city').textContent = f.originCity;
-      document.getElementById('display-dest-city').textContent = f.destCity;
-      document.getElementById('display-aircraft-meta').textContent = `${f.airline}, ${f.type}, ${f.reg}`;
-      document.getElementById('display-vspeed').textContent = f.vspeed;
-      document.getElementById('display-bearing-dir').textContent = f.bearingDir;
-      document.getElementById('compass-needle').style.transform = `rotate(${f.bearingDeg}deg)`;
-
-      renderFlapGroup('flaps-origin', f.origin.padEnd(3, ' '), 'w-8 h-11 sm:w-12 sm:h-15 text-2xl sm:text-4xl', triggerAnim);
-      renderFlapGroup('flaps-dest', f.dest.padEnd(3, ' '), 'w-8 h-11 sm:w-12 sm:h-15 text-2xl sm:text-4xl', triggerAnim);
-
-      renderFlapGroup('flaps-flight', f.flight, 'w-4 h-6 sm:w-5 sm:h-7 text-xs sm:text-sm', triggerAnim);
-
-      const altStr = `${Math.round(f.alt)}FT`;
-      const spdStr = `${Math.round(f.speed)}MPH`;
-      const distStr = `${Number(f.dist).toFixed(1)}MI`;
-
-      renderFlapGroup('flaps-alt', altStr, 'w-3.5 h-5 sm:w-4 sm:h-6 text-[10px] sm:text-xs', triggerAnim);
-      renderFlapGroup('flaps-speed', spdStr, 'w-3.5 h-5 sm:w-4 sm:h-6 text-[10px] sm:text-xs', triggerAnim);
-      renderFlapGroup('flaps-dist', distStr, 'w-3.5 h-5 sm:w-4 sm:h-6 text-[10px] sm:text-xs', triggerAnim);
-
-      document.getElementById('aircraft-svg-container').innerHTML = renderAircraftSVG(f.livery);
-
-      document.getElementById('dock-flight-label').textContent = `${currentIndex + 1} / ${PRESET_FLIGHTS.length} • ${f.flight} (${f.airline})`;
-    }
-
-    function updateClock() {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      document.getElementById('display-clock').textContent = `${hh}:${mm}`;
-    }
-
-    setInterval(() => {
-      if (!autoCycle) return;
-      if (currentFlight.vspeed === 'climbing') {
-        currentFlight.alt += Math.floor(Math.random() * 65) + 20;
-        currentFlight.speed += Math.floor(Math.random() * 3);
-      } else {
-        currentFlight.alt = Math.max(1200, currentFlight.alt - (Math.floor(Math.random() * 55) + 15));
-        currentFlight.speed = Math.max(155, currentFlight.speed - Math.floor(Math.random() * 2));
-      }
-      currentFlight.dist = Math.max(0.4, +(currentFlight.dist + (Math.random() > 0.5 ? 0.1 : -0.1)).toFixed(1));
-      updateDisplay(false);
-    }, 3500);
-
-    setInterval(() => {
-      if (!autoCycle) return;
-      nextFlight();
-    }, 14000);
-
-    function nextFlight() {
-      currentIndex = (currentIndex + 1) % PRESET_FLIGHTS.length;
-      currentFlight = { ...PRESET_FLIGHTS[currentIndex] };
-      updateDisplay(true);
-    }
-
-    function prevFlight() {
-      currentIndex = (currentIndex - 1 + PRESET_FLIGHTS.length) % PRESET_FLIGHTS.length;
-      currentFlight = { ...PRESET_FLIGHTS[currentIndex] };
-      updateDisplay(true);
-    }
-
-    function changeLocation() {
-      const loc = document.getElementById('location-select').value;
-      document.getElementById('display-sky-location').textContent = loc;
-      if (loc === 'Southend-on-Sea') {
-        currentIndex = 3;
-        currentFlight = { ...PRESET_FLIGHTS[3] };
-      } else if (loc === 'New York') {
-        currentIndex = 1;
-        currentFlight = { ...PRESET_FLIGHTS[1] };
-      }
-      updateDisplay(true);
-    }
-
-    function toggleAutoCycle() {
-      autoCycle = !autoCycle;
-      const btn = document.getElementById('auto-cycle-btn');
-      if (autoCycle) {
-        btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center space-x-1.5 hover:bg-emerald-100 transition";
-        btn.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span><span>Live Radar: ON</span>`;
-      } else {
-        btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200 flex items-center space-x-1.5 hover:bg-gray-200 transition";
-        btn.innerHTML = `<span class="w-2 h-2 rounded-full bg-gray-400"></span><span>Live Radar: PAUSED</span>`;
-      }
-    }
-
-    function toggleFrameMaterial() {
-      isOakFrame = !isOakFrame;
-      const frame = document.getElementById('physical-frame');
-      const btn = document.getElementById('frame-style-btn');
-      if (isOakFrame) {
-        frame.classList.remove('frame-black');
-        frame.classList.add('frame-oak');
-        btn.innerHTML = `<i data-lucide="frame" class="w-3.5 h-3.5"></i><span>Black Frame</span>`;
-      } else {
-        frame.classList.remove('frame-oak');
-        frame.classList.add('frame-black');
-        btn.innerHTML = `<i data-lucide="frame" class="w-3.5 h-3.5"></i><span>Oak Frame</span>`;
-      }
+    function switchView(viewName) {
+      ['poster', 'radar', 'board', 'spotter'].forEach(v => {
+        document.getElementById(`view-${v}`).classList.toggle('hidden', v !== viewName);
+        const btn = document.getElementById(`nav-${v}`);
+        if (v === viewName) {
+          btn.className = "flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center space-x-1.5 bg-white text-slate-950 shadow transition";
+        } else {
+          btn.className = "flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 text-slate-400 hover:text-white transition";
+        }
+      });
+      if (viewName === 'radar') renderRadar();
+      if (viewName === 'board') renderBoard();
+      if (viewName === 'spotter') renderSpotterLogs();
       lucide.createIcons();
     }
 
-    function toggleAmbientTheme() {
-      isDarkAmbient = !isDarkAmbient;
-      document.body.classList.toggle('dark-ambient', isDarkAmbient);
-      const btn = document.getElementById('theme-btn');
-      btn.innerHTML = isDarkAmbient ? `<i data-lucide="sun" class="w-4 h-4"></i>` : `<i data-lucide="moon" class="w-4 h-4"></i>`;
+    function selectAircraft(id, goToPoster = false) {
+      selectedId = id;
+      renderPoster();
+      renderRadar();
+      if (goToPoster) switchView('poster');
+    }
+
+    function renderPoster() {
+      const sorted = [...aircraftList].sort((a, b) => a.distKm - b.distKm);
+      const active = sorted.find(a => a.id === selectedId) || sorted[0];
+      selectedId = active.id;
+
+      document.getElementById('header-acft-count').textContent = `${aircraftList.length} ACFT`;
+      document.getElementById('poster-icao-pill').textContent = active.icao;
+
+      const vLabel = active.vrate > 100
+        ? `CLIMBING • +${active.vrate} ft/min`
+        : active.vrate < -100
+          ? `DESCENDING • ${active.vrate} ft/min`
+          : `CRUISING • LEVEL`;
+      document.getElementById('poster-vspeed-pill').textContent = vLabel;
+
+      document.getElementById('poster-callsign').textContent = active.callsign;
+      document.getElementById('poster-subtitle').innerHTML = `${active.type} • Reg <span class="text-slate-200 font-semibold">${active.reg}</span>`;
+
+      document.getElementById('poster-origin').textContent = active.origin;
+      document.getElementById('poster-dest').textContent = active.dest;
+      document.getElementById('poster-route-dist').textContent = `${active.distKm.toFixed(1)} KM AWAY`;
+
+      document.getElementById('poster-plane-svg').innerHTML = renderCleanSideProfile(active.tailColor, active.stripeColor);
+
+      // Render nearby aircraft pills
+      const pillsGrid = document.getElementById('nearby-pills-grid');
+      pillsGrid.innerHTML = sorted.slice(0, 8).map(ac => {
+        const isSelected = ac.id === active.id;
+        return `
+          <button onclick="selectAircraft('${ac.id}')" class="px-3 py-2 rounded-full font-mono text-xs flex items-center justify-between transition ${isSelected ? 'bg-white text-slate-950 font-extrabold shadow' : 'bg-[#161d2c] text-slate-300 border border-[#232d42] hover:border-slate-500'}">
+            <span>${ac.callsign}</span>
+            <span class="${isSelected ? 'text-slate-600' : 'text-slate-400'}">${ac.distKm.toFixed(1)}km</span>
+          </button>
+        `;
+      }).join('');
+
+      // Telemetry cards
+      const altMeters = Math.round(active.altFt * 0.3048);
+      const spdKmh = Math.round(active.spdKts * 1.852);
+      const distNm = (active.distKm * 0.539957).toFixed(1);
+
+      document.getElementById('tele-alt-m').textContent = altMeters.toLocaleString();
+      document.getElementById('tele-alt-ft').textContent = active.altFt.toLocaleString();
+      document.getElementById('tele-spd-kmh').textContent = spdKmh;
+      document.getElementById('tele-spd-kts').textContent = active.spdKts;
+      document.getElementById('tele-dist-km').textContent = Math.round(active.distKm);
+      document.getElementById('tele-dist-nm').textContent = `${distNm} nm •`;
+      document.getElementById('tele-bearing').textContent = `${active.bearingDeg}° ${active.bearingCard}`;
+      document.getElementById('tele-track').textContent = `${active.track}°`;
+      document.getElementById('tele-squawk').textContent = active.squawk;
+    }
+
+    function renderRadar() {
+      const layer = document.getElementById('radar-targets-layer');
+      const active = aircraftList.find(a => a.id === selectedId) || aircraftList[0];
+
+      document.getElementById('radar-tracks-badge').textContent = `${aircraftList.length} TRACKS`;
+      document.getElementById('radar-detail-callsign').textContent = active.callsign;
+      document.getElementById('radar-detail-airline').textContent = active.airline.toUpperCase();
+      document.getElementById('radar-detail-dist').textContent = `${active.distKm.toFixed(1)} km`;
+      document.getElementById('radar-detail-brg').textContent = `BRG ${String(active.bearingDeg).padStart(3, '0')}° (${active.bearingCard})`;
+      document.getElementById('radar-detail-type').textContent = `${active.type} (${active.reg})`;
+      document.getElementById('radar-detail-route').textContent = `${active.origin} (Origin) → ${active.dest} (Destination)`;
+
+      layer.innerHTML = aircraftList.map(ac => {
+        const rad = (ac.angle * Math.PI) / 180;
+        const r = Math.min(148, (ac.distKm / 45) * 155);
+        const cx = 180 + r * Math.cos(rad);
+        const cy = 180 + r * Math.sin(rad);
+        const isSel = ac.id === active.id;
+        const altM = Math.round(ac.altFt * 0.3048);
+        const spdK = Math.round(ac.spdKts * 1.852);
+
+        return `
+          <g onclick="selectAircraft('${ac.id}')" class="cursor-pointer">
+            ${isSel ? `<circle cx="${cx}" cy="${cy}" r="9" fill="none" stroke="#f59e0b" stroke-width="1.5"/>` : ''}
+            <circle cx="${cx}" cy="${cy}" r="3.5" fill="${isSel ? '#f59e0b' : '#10b981'}"/>
+            <text x="${cx + 7}" y="${cy - 2}" fill="${isSel ? '#fbbf24' : '#f8fafc'}" font-family="JetBrains Mono" font-size="9" font-weight="bold">${ac.callsign}</text>
+            <text x="${cx + 7}" y="${cy + 8}" fill="#64748b" font-family="JetBrains Mono" font-size="7.5">${altM}m • ${spdK}k</text>
+          </g>
+        `;
+      }).join('');
+    }
+
+    function renderBoard() {
+      const list = document.getElementById('overhead-board-list');
+      const sorted = [...aircraftList].sort((a, b) => a.distKm - b.distKm);
+
+      list.innerHTML = sorted.map(ac => {
+        const altM = Math.round(ac.altFt * 0.3048);
+        const spdKmh = Math.round(ac.spdKts * 1.852);
+        return `
+          <div onclick="selectAircraft('${ac.id}', true)" class="avio-subcard p-3.5 flex items-center justify-between cursor-pointer hover:border-sky-500/40 transition">
+            <div class="space-y-1">
+              <div class="font-mono font-extrabold text-sm text-amber-400">${ac.callsign}</div>
+              <div class="font-mono text-[11px] text-slate-400">${ac.reg}</div>
+              <div class="font-mono text-[11px] text-sky-400 pt-1">${ac.origin} &rarr; ${ac.dest} • HDG ${ac.track}°</div>
+              <div class="font-mono text-xs font-semibold text-slate-300">${spdKmh} km/h</div>
+            </div>
+
+            <div class="text-right space-y-1">
+              <div class="text-xs font-bold text-white">${ac.airline}</div>
+              <div class="text-[11px] text-slate-400">${ac.type}</div>
+              <div class="font-mono text-xs font-bold text-slate-200 pt-1">${altM.toLocaleString()} m</div>
+              <div class="font-mono text-[10px] text-slate-400">${ac.altFt.toLocaleString()} ft</div>
+              <div class="font-mono text-xs font-extrabold text-emerald-400">${ac.distKm.toFixed(1)} km</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('board-scan-time').textContent = new Date().toTimeString().split(' ')[0];
+    }
+
+    function addCustomAircraft(e) {
+      e.preventDefault();
+      const callsign = document.getElementById('cust-callsign').value.toUpperCase().trim();
+      const reg = document.getElementById('cust-reg').value.toUpperCase().trim();
+      const airline = document.getElementById('cust-airline').value.trim();
+      const type = document.getElementById('cust-type').value.trim();
+      const origin = document.getElementById('cust-origin').value.toUpperCase().trim();
+      const dest = document.getElementById('cust-dest').value.toUpperCase().trim();
+      const tailColor = document.getElementById('cust-color').value;
+      const altFt = parseInt(document.getElementById('cust-alt-ft').value, 10) || 12000;
+      const spdKts = parseInt(document.getElementById('cust-spd-kts').value, 10) || 280;
+      const distKm = parseFloat(document.getElementById('cust-dist-km').value) || 12.5;
+
+      const newAc = {
+        id: 'custom_' + Date.now(),
+        icao: callsign.slice(0, 3),
+        callsign,
+        airline,
+        type,
+        reg,
+        origin,
+        dest,
+        altFt,
+        vrate: 450,
+        spdKts,
+        distKm,
+        bearingDeg: 180,
+        bearingCard: 'S',
+        track: 180,
+        squawk: '7000',
+        tailColor,
+        stripeColor: tailColor,
+        angle: 90,
+        radiusRatio: 0.3
+      };
+
+      aircraftList.unshift(newAc);
+      selectedId = newAc.id;
+      e.target.reset();
+      selectAircraft(newAc.id, true);
+    }
+
+    function logCurrentAircraft() {
+      const active = aircraftList.find(a => a.id === selectedId) || aircraftList[0];
+      const entry = {
+        id: Date.now(),
+        callsign: active.callsign,
+        reg: active.reg,
+        type: active.type,
+        airline: active.airline,
+        route: `${active.origin} → ${active.dest}`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      spottedLogs.unshift(entry);
+      localStorage.setItem('avioframe_spotter_logs', JSON.stringify(spottedLogs));
+      renderSpotterLogs();
+      alert(`Logged ${active.callsign} (${active.reg}) to your Spotter Logbook!`);
+    }
+
+    function renderSpotterLogs() {
+      const container = document.getElementById('spotter-logbook-list');
+      document.getElementById('spotter-log-count').textContent = `${spottedLogs.length} LOGGED`;
+
+      if (spottedLogs.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No aircraft logged yet. Tap "Log Catch" on any flight in Poster view!</p>`;
+        return;
+      }
+
+      container.innerHTML = spottedLogs.map(item => `
+        <div class="avio-subcard p-3 flex items-center justify-between text-xs">
+          <div>
+            <div class="font-mono font-bold text-amber-400">${item.callsign} • ${item.reg}</div>
+            <div class="text-slate-300">${item.airline} (${item.type})</div>
+            <div class="font-mono text-[10px] text-sky-400">${item.route}</div>
+          </div>
+          <div class="text-right font-mono text-[10px] text-slate-400">
+            <div>${item.time}</div>
+            <button onclick="deleteSpotterLog(${item.id})" class="text-rose-400 hover:underline mt-1">Remove</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function deleteSpotterLog(id) {
+      spottedLogs = spottedLogs.filter(l => l.id !== id);
+      localStorage.setItem('avioframe_spotter_logs', JSON.stringify(spottedLogs));
+      renderSpotterLogs();
+    }
+
+    function cycleLocation() {
+      currentLocationIdx = (currentLocationIdx + 1) % LOCATIONS.length;
+      const loc = LOCATIONS[currentLocationIdx];
+      document.getElementById('header-location-label').textContent = loc.label;
+      document.getElementById('radar-center-icao').textContent = loc.icao;
+      document.getElementById('radar-legend-apt').textContent = `AIRFIELD (${loc.icao})`;
+    }
+
+    function toggleLiveSim() {
+      liveSim = !liveSim;
+      document.getElementById('live-dot').className = liveSim ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse' : 'w-2 h-2 rounded-full bg-slate-500';
+      document.getElementById('live-pill-text').textContent = liveSim ? 'Live ADS-B' : 'Paused';
+    }
+
+    function toggleTheme() {
+      isLight = !isLight;
+      document.body.classList.toggle('light-theme', isLight);
+      const btn = document.getElementById('theme-toggle-btn');
+      btn.innerHTML = isLight ? `<i data-lucide="moon" class="w-3.5 h-3.5"></i>` : `<i data-lucide="sun" class="w-3.5 h-3.5"></i>`;
       lucide.createIcons();
     }
 
     function toggleSound() {
-      soundEnabled = !soundEnabled;
-      const btn = document.getElementById('sound-btn');
-      btn.innerHTML = soundEnabled ? `<i data-lucide="volume-2" class="w-4 h-4 text-emerald-600"></i>` : `<i data-lucide="volume-x" class="w-4 h-4 text-gray-400"></i>`;
-      if (soundEnabled) playFlapClick();
+      soundOn = !soundOn;
+      const btn = document.getElementById('sound-toggle-btn');
+      btn.innerHTML = soundOn ? `<i data-lucide="volume-2" class="w-3.5 h-3.5 text-emerald-400"></i>` : `<i data-lucide="volume-x" class="w-3.5 h-3.5 text-slate-500"></i>`;
       lucide.createIcons();
     }
 
-    function toggleFullscreen() {
-      const active = document.body.classList.toggle('fullscreen-mode');
-      document.getElementById('exit-fullscreen-btn').classList.toggle('hidden', !active);
+    function refreshTelemetry() {
+      aircraftList.forEach(ac => {
+        ac.distKm = Math.max(1.2, +(ac.distKm + (Math.random() > 0.5 ? 0.3 : -0.3)).toFixed(1));
+        ac.altFt = Math.max(1500, ac.altFt + ac.vrate / 12);
+        ac.altFt = Math.round(ac.altFt);
+        ac.angle = (ac.angle + 2) % 360;
+      });
+      renderPoster();
+      renderRadar();
+      renderBoard();
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')) {
-        toggleFullscreen();
-      }
-    });
-
-    function openCustomModal() {
-      document.getElementById('custom-modal').classList.remove('hidden');
+    function exportSnapshot() {
+      const active = aircraftList.find(a => a.id === selectedId) || aircraftList[0];
+      alert(`AvioFrame Telemetry Snapshot:\n${active.callsign} (${active.reg})\n${active.airline} • ${active.type}\nRoute: ${active.origin} → ${active.dest}\nAlt: ${active.altFt} ft | Speed: ${active.spdKts} kts | Dist: ${active.distKm} km`);
     }
 
-    function closeCustomModal() {
-      document.getElementById('custom-modal').classList.add('hidden');
-    }
-
-    function applyCustomFlight(e) {
-      e.preventDefault();
-      const liveryMap = {
-        virgin: 'Virgin Atlantic',
-        ba: 'British Airways',
-        emirates: 'Emirates',
-        easyjet: 'easyJet',
-        lufthansa: 'Lufthansa',
-        ryanair: 'Ryanair'
-      };
-      const liv = document.getElementById('cust-livery').value;
-      currentFlight = {
-        origin: document.getElementById('cust-orig').value.toUpperCase().trim(),
-        dest: document.getElementById('cust-dest').value.toUpperCase().trim(),
-        originCity: document.getElementById('cust-orig-city').value.trim(),
-        destCity: document.getElementById('cust-dest-city').value.trim(),
-        flight: document.getElementById('cust-flight').value.toUpperCase().trim(),
-        airline: liveryMap[liv] || 'Airline',
-        type: document.getElementById('cust-type').value.trim(),
-        reg: document.getElementById('cust-reg').value.toUpperCase().trim(),
-        livery: liv,
-        alt: parseInt(document.getElementById('cust-alt').value, 10) || 8500,
-        vspeed: 'climbing',
-        speed: parseInt(document.getElementById('cust-spd').value, 10) || 320,
-        dist: parseFloat(document.getElementById('cust-dist').value) || 4.5,
-        bearingDir: 'W',
-        bearingDeg: -90
-      };
-      autoCycle = false;
-      toggleAutoCycle();
-      toggleAutoCycle();
-      closeCustomModal();
-      updateDisplay(true);
-    }
+    // Live simulation loop every 4 seconds
+    setInterval(() => {
+      if (liveSim) refreshTelemetry();
+    }, 4000);
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
-      updateClock();
-      setInterval(updateClock, 10000);
-      updateDisplay(true);
+      renderPoster();
+      renderRadar();
+      renderBoard();
+      renderSpotterLogs();
     });
   </script>
-</body>
-</html>
