@@ -578,7 +578,7 @@
       return map[prefix] || { airline: `Operator (${prefix || 'ADS-B'})`, tail: '#0ea5e9', stripe: '#38bdf8' };
     }
 
-    async function fetchLiveADSB(manual = false) {
+   
       const loc = LOCATIONS[currentLocationIdx];
       const badge = document.getElementById('feed-source-badge');
       if (manual) {
