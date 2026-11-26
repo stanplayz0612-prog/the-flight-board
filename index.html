@@ -183,7 +183,7 @@
               ---
             </span>
             <span id="poster-vspeed-pill" class="px-3 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 font-mono font-semibold text-[11px] truncate">
-              WAITING FOR LIVE ADS-B
+              CONNECTING TO WORKER...
             </span>
           </div>
 
@@ -383,7 +383,7 @@
         </div>
         <div id="overhead-board-list" class="space-y-2.5"></div>
         <div class="pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500">
-          <div id="board-source-label">SOURCE: LIVE ADS-B ONLY</div>
+          <div id="board-source-label">SOURCE: CLOUDFLARE ADS-B RELAY</div>
           <div>LAST SCAN: <span id="board-scan-time">--:--:--</span></div>
         </div>
       </div>
@@ -416,6 +416,8 @@
   </nav>
 
   <script>
+    const WORKER_URL = 'https://thebest.stanplayz0612.workers.dev/';
+
     const LOCATIONS = [
       { label: 'Southend-on-Sea, UK (EGMC) • 80 nm', icao: 'EGMC', lat: 51.5714, lon: 0.6956 },
       { label: 'London Heathrow, UK (EGLL) • 80 nm', icao: 'EGLL', lat: 51.4700, lon: -0.4543 },
@@ -473,34 +475,47 @@
       return map[prefix] || { airline: `Operator (${prefix || 'ADS-B'})`, tail: '#0ea5e9', stripe: '#38bdf8' };
     }
 
-    function normalizeAircraft(rawList, loc, isOpenSky = false) {
-      if (isOpenSky) {
-        return rawList
-          .filter(s => typeof s[6] === 'number' && typeof s[5] === 'number' && !s[8])
-          .map((s, idx) => {
-            const callsign = (s[1] || s[0] || 'UNKN').trim();
+    async function fetchLiveADSB(manual = false) {
+      const loc = LOCATIONS[currentLocationIdx];
+      const badge = document.getElementById('feed-source-badge');
+      badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
+      badge.innerHTML = `SYNCING LIVE ADS-B...`;
+
+      try {
+        const url = `${WORKER_URL}?lat=${loc.lat}&lon=${loc.lon}&dist=80`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        const rawList = data.ac || data.aircraft || [];
+
+        const liveParsed = rawList
+          .filter(a => typeof a.lat === 'number' && typeof a.lon === 'number' && a.alt_baro !== 'ground')
+          .map((a, idx) => {
+            const callsign = (a.flight || a.r || a.hex || 'UNKN').trim();
             const brand = airlineBranding(callsign);
-            const dLat = (s[6] - loc.lat) * 111.32;
-            const dLon = (s[5] - loc.lon) * 111.32 * Math.cos(loc.lat * Math.PI / 180);
+            const dLat = (a.lat - loc.lat) * 111.32;
+            const dLon = (a.lon - loc.lon) * 111.32 * Math.cos(loc.lat * Math.PI / 180);
             const distKm = Math.max(0.8, Math.sqrt(dLat * dLat + dLon * dLon));
             const brg = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
+
             return {
-              id: s[0] || `os_${idx}`,
+              id: a.hex || `live_${idx}`,
               icao: callsign.slice(0, 3) || 'ADS',
               callsign,
               airline: brand.airline,
-              type: 'Live ADS-B Target',
-              reg: s[0] ? s[0].toUpperCase() : 'N/A',
+              type: a.desc || (a.t ? `ICAO ${a.t}` : 'Live Aircraft'),
+              reg: a.r || (a.hex ? a.hex.toUpperCase() : 'N/A'),
               origin: loc.icao,
               dest: 'LIVE',
-              altFt: typeof s[7] === 'number' ? Math.round(s[7] * 3.28084) : 15000,
-              vrate: typeof s[11] === 'number' ? Math.round(s[11] * 196.85) : 0,
-              spdKts: typeof s[9] === 'number' ? Math.round(s[9] * 1.94384) : 320,
+              altFt: typeof a.alt_baro === 'number' ? a.alt_baro : 15000,
+              vrate: a.baro_rate || a.geom_rate || 0,
+              spdKts: Math.round(a.gs || 320),
               distKm: +distKm.toFixed(1),
               bearingDeg: Math.round(brg),
               bearingCard: getCardinal(brg),
-              track: typeof s[10] === 'number' ? Math.round(s[10]) : 90,
-              squawk: '----',
+              track: Math.round(a.track || 90),
+              squawk: a.squawk || '----',
               tailColor: brand.tail,
               stripeColor: brand.stripe,
               xKm: dLon,
@@ -509,107 +524,23 @@
           })
           .sort((a, b) => a.distKm - b.distKm)
           .slice(0, 16);
-      }
 
-      return rawList
-        .filter(a => typeof a.lat === 'number' && typeof a.lon === 'number' && a.alt_baro !== 'ground')
-        .map((a, idx) => {
-          const callsign = (a.flight || a.r || a.hex || 'UNKN').trim();
-          const brand = airlineBranding(callsign);
-          const dLat = (a.lat - loc.lat) * 111.32;
-          const dLon = (a.lon - loc.lon) * 111.32 * Math.cos(loc.lat * Math.PI / 180);
-          const distKm = Math.max(0.8, Math.sqrt(dLat * dLat + dLon * dLon));
-          const brg = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
-          return {
-            id: a.hex || `live_${idx}`,
-            icao: callsign.slice(0, 3) || 'ADS',
-            callsign,
-            airline: brand.airline,
-            type: a.desc || (a.t ? `ICAO ${a.t}` : 'Live Aircraft'),
-            reg: a.r || (a.hex ? a.hex.toUpperCase() : 'N/A'),
-            origin: loc.icao,
-            dest: 'LIVE',
-            altFt: typeof a.alt_baro === 'number' ? a.alt_baro : 15000,
-            vrate: a.baro_rate || a.geom_rate || 0,
-            spdKts: Math.round(a.gs || 320),
-            distKm: +distKm.toFixed(1),
-            bearingDeg: Math.round(brg),
-            bearingCard: getCardinal(brg),
-            track: Math.round(a.track || 90),
-            squawk: a.squawk || '----',
-            tailColor: brand.tail,
-            stripeColor: brand.stripe,
-            xKm: dLon,
-            yKm: dLat
-          };
-        })
-        .sort((a, b) => a.distKm - b.distKm)
-        .slice(0, 16);
-    }
-
-    async function fetchFromSource(url, parserType, loc) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 7000);
-      try {
-        const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
-        clearTimeout(timer);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        let data = await res.json();
-        if (data && typeof data.contents === 'string') {
-          data = JSON.parse(data.contents);
-        }
-        if (parserType === 'opensky') {
-          if (!data || !Array.isArray(data.states) || data.states.length === 0) throw new Error('Empty');
-          const parsed = normalizeAircraft(data.states, loc, true);
-          if (parsed.length === 0) throw new Error('No airborne');
-          return { parsed, sourceName: 'OPENSKY LIVE' };
+        if (liveParsed.length > 0) {
+          aircraftList = liveParsed;
+          if (!aircraftList.some(a => a.id === selectedId)) {
+            selectedId = aircraftList[0].id;
+          }
+          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate';
+          badge.innerHTML = `ADS-B LIVE • ${aircraftList.length} ACFT`;
+          document.getElementById('board-source-label').textContent = 'SOURCE: LIVE ADS-B FEED + 1S KINEMATICS';
         } else {
-          const raw = data.ac || data.aircraft || [];
-          if (!Array.isArray(raw) || raw.length === 0) throw new Error('Empty');
-          const parsed = normalizeAircraft(raw, loc, false);
-          if (parsed.length === 0) throw new Error('No airborne');
-          return { parsed, sourceName: 'ADS-B LIVE' };
+          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
+          badge.innerHTML = `0 AIRBORNE NEARBY`;
         }
-      } catch (e) {
-        clearTimeout(timer);
-        throw e;
-      }
-    }
-
-    async function fetchLiveADSB(manual = false) {
-      const loc = LOCATIONS[currentLocationIdx];
-      const badge = document.getElementById('feed-source-badge');
-      badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
-      badge.innerHTML = `SCANNING LIVE ADS-B...`;
-
-      const adsbLolUrl = `https://api.adsb.lol/v2/point/${loc.lat}/${loc.lon}/80`;
-      const airplanesLiveUrl = `https://api.airplanes.live/v2/point/${loc.lat}/${loc.lon}/80`;
-      const deg = 1.1;
-      const openSkyUrl = `https://opensky-network.org/api/states/all?lamin=${(loc.lat - deg).toFixed(2)}&lomin=${(loc.lon - deg).toFixed(2)}&lamax=${(loc.lat + deg).toFixed(2)}&lomax=${(loc.lon + deg).toFixed(2)}`;
-
-      const racePromises = [
-        fetchFromSource(openSkyUrl, 'opensky', loc),
-        fetchFromSource(adsbLolUrl, 'adsb', loc),
-        fetchFromSource(airplanesLiveUrl, 'adsb', loc),
-        fetchFromSource(`https://api.allorigins.win/get?url=${encodeURIComponent(adsbLolUrl)}`, 'adsb', loc),
-        fetchFromSource(`https://api.allorigins.win/get?url=${encodeURIComponent(airplanesLiveUrl)}`, 'adsb', loc),
-        fetchFromSource(`https://corsproxy.io/?${encodeURIComponent(adsbLolUrl)}`, 'adsb', loc),
-        fetchFromSource(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(adsbLolUrl)}`, 'adsb', loc)
-      ];
-
-      try {
-        const winner = await Promise.any(racePromises);
-        aircraftList = winner.parsed;
-        if (!aircraftList.some(a => a.id === selectedId)) {
-          selectedId = aircraftList[0].id;
-        }
-        badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate';
-        badge.innerHTML = `${winner.sourceName} • ${aircraftList.length} ACFT`;
-        document.getElementById('board-source-label').textContent = `SOURCE: ${winner.sourceName} + 1S KINEMATICS`;
         updateAllViews();
-      } catch (allErr) {
+      } catch (err) {
         badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 truncate';
-        badge.innerHTML = `FEED BLOCKED (TAP SYNC)`;
+        badge.innerHTML = `RETRYING (${err.message})`;
         updateAllViews();
       }
     }
