@@ -183,7 +183,7 @@
               ---
             </span>
             <span id="poster-vspeed-pill" class="px-3 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 font-mono font-semibold text-[11px] truncate">
-              CONNECTING TO WORKER...
+              CONNECTING TO RADAR...
             </span>
           </div>
 
@@ -433,6 +433,8 @@
     let soundOn = false;
     let isFlightwall = false;
     let currentView = 'poster';
+    let fetchRetryTimer = null;
+    let activeFetchToken = 0;
 
     function toggleFlightwall() {
       if (currentView !== 'poster') switchView('poster');
@@ -475,18 +477,28 @@
       return map[prefix] || { airline: `Operator (${prefix || 'ADS-B'})`, tail: '#0ea5e9', stripe: '#38bdf8' };
     }
 
-    async function fetchLiveADSB(manual = false) {
+    async function fetchLiveADSB(manual = false, retryCount = 0, token = null) {
+      if (retryCount === 0) {
+        if (fetchRetryTimer) clearTimeout(fetchRetryTimer);
+        activeFetchToken++;
+        token = activeFetchToken;
+      } else if (token !== activeFetchToken) {
+        return;
+      }
+
       const loc = LOCATIONS[currentLocationIdx];
       const badge = document.getElementById('feed-source-badge');
       badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
-      badge.innerHTML = `SYNCING LIVE ADS-B...`;
+      badge.innerHTML = `SYNCING ${loc.icao}...`;
 
       try {
-        const url = `${WORKER_URL}?lat=${loc.lat}&lon=${loc.lon}&dist=80`;
+        const url = `${WORKER_URL}?lat=${loc.lat}&lon=${loc.lon}&dist=80&_t=${Date.now()}`;
         const res = await fetch(url, { cache: 'no-store' });
+        if (token !== activeFetchToken) return;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
+        if (token !== activeFetchToken) return;
         const rawList = data.ac || data.aircraft || [];
 
         const liveParsed = rawList
@@ -531,14 +543,26 @@
             selectedId = aircraftList[0].id;
           }
           badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate';
-          badge.innerHTML = `ADS-B LIVE • ${aircraftList.length} ACFT`;
-          document.getElementById('board-source-label').textContent = 'SOURCE: LIVE ADS-B FEED + 1S KINEMATICS';
-        } else {
-          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
-          badge.innerHTML = `0 AIRBORNE NEARBY`;
+          badge.innerHTML = `${loc.icao} LIVE • ${aircraftList.length} ACFT`;
+          document.getElementById('board-source-label').textContent = `SOURCE: ${loc.icao} LIVE ADS-B + 1S KINEMATICS`;
+          updateAllViews();
+          return;
         }
+
+        if (retryCount < 2) {
+          fetchRetryTimer = setTimeout(() => fetchLiveADSB(manual, retryCount + 1, token), 1500);
+          return;
+        }
+
+        badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
+        badge.innerHTML = `0 AIRBORNE AT ${loc.icao}`;
         updateAllViews();
       } catch (err) {
+        if (token !== activeFetchToken) return;
+        if (retryCount < 2) {
+          fetchRetryTimer = setTimeout(() => fetchLiveADSB(manual, retryCount + 1, token), 1500);
+          return;
+        }
         badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 truncate';
         badge.innerHTML = `RETRYING (${err.message})`;
         updateAllViews();
@@ -618,12 +642,24 @@
 
       if (aircraftList.length === 0) {
         document.getElementById('poster-icao-pill').textContent = 'ADS-B';
-        document.getElementById('poster-vspeed-pill').textContent = 'CONNECTING TO RADAR...';
-        document.getElementById('poster-callsign').textContent = 'SCANNING SKY...';
+        document.getElementById('poster-vspeed-pill').textContent = 'SCANNING AIRSPACE...';
+        document.getElementById('poster-callsign').textContent = 'SCANNING...';
         document.getElementById('poster-subtitle').innerHTML = `Searching 80 nm around <span class="text-slate-200 font-semibold">${loc.icao}</span>`;
         document.getElementById('poster-route-dist').textContent = '80 NM RADIUS';
         document.getElementById('poster-plane-svg').innerHTML = renderCleanSideProfile('#0ea5e9', '#38bdf8');
         document.getElementById('nearby-pills-grid').innerHTML = '';
+        document.getElementById('tele-alt-m').textContent = '--';
+        document.getElementById('tele-alt-ft').textContent = '--';
+        document.getElementById('tele-spd-kmh').textContent = '--';
+        document.getElementById('tele-spd-kts').textContent = '--';
+        document.getElementById('tele-dist-km').textContent = '--';
+        document.getElementById('tele-dist-nm').textContent = '-- nm •';
+        document.getElementById('tele-bearing').textContent = '--°';
+        document.getElementById('tele-track').textContent = '--°';
+        document.getElementById('tele-squawk').textContent = '----';
+        document.getElementById('fw-alt').textContent = '-- ft';
+        document.getElementById('fw-spd').textContent = '-- kts';
+        document.getElementById('fw-hdg').textContent = '---°';
         return;
       }
 
@@ -675,6 +711,12 @@
       document.getElementById('radar-tracks-badge').textContent = `${aircraftList.length} TRACKS`;
       if (aircraftList.length === 0) {
         layer.innerHTML = '';
+        document.getElementById('radar-detail-callsign').textContent = '---';
+        document.getElementById('radar-detail-airline').textContent = 'SCANNING AIRSPACE...';
+        document.getElementById('radar-detail-dist').textContent = '-- km';
+        document.getElementById('radar-detail-brg').textContent = 'BRG ---°';
+        document.getElementById('radar-detail-type').textContent = '---';
+        document.getElementById('radar-detail-route').textContent = '---';
         return;
       }
 
@@ -729,9 +771,12 @@
     function cycleLocation() {
       currentLocationIdx = (currentLocationIdx + 1) % LOCATIONS.length;
       const loc = LOCATIONS[currentLocationIdx];
+      aircraftList = [];
+      selectedId = null;
       document.getElementById('header-location-label').textContent = loc.label;
       document.getElementById('radar-center-icao').textContent = loc.icao;
       document.getElementById('radar-legend-apt').textContent = `AIRFIELD (${loc.icao})`;
+      updateAllViews();
       fetchLiveADSB(true);
     }
 
