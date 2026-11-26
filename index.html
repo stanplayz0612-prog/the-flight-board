@@ -139,9 +139,9 @@
   </button>
 
   <!-- TOP AMBIENT STATUS BAR -->
-  <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2 z-20">
-    <!-- Brand & Quick-Switch Airport Station -->
-    <div class="flex items-center gap-3">
+  <header class="w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2 z-30">
+    <!-- Brand & Quick-Switch Airport Menu -->
+    <div class="flex items-center gap-3 relative">
       <div class="w-9 h-9 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-sm shrink-0">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
@@ -150,13 +150,21 @@
       <div>
         <div class="flex items-center gap-2 flex-wrap">
           <span class="font-bold tracking-tight text-base sm:text-lg">AVIOFRAME</span>
-          <button id="stationBadge" onclick="cycleAirport()" title="Tap to switch airport (EGMC / EGLL / EGSS / EGCC)"
+          <button id="stationBadge" onclick="toggleAirportMenu(event)" title="Tap to pick a UK or international airport"
             class="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/15 hover:bg-sky-500/25 text-sky-600 dark:text-sky-400 mono transition active:scale-95">
-            <span id="stationBadgeText">SOUTHEND (EGMC)</span>
+            <span id="stationBadgeText">SOUTHEND (SEN)</span>
             <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 9 6 6 6-6"/></svg>
           </button>
         </div>
-        <p id="statusSubline" class="text-xs opacity-65">Scanning UK live airspace…</p>
+        <p id="statusSubline" class="text-xs opacity-65">Loading live radar… may take a while</p>
+      </div>
+
+      <!-- Airport Quick-Picker Dropdown -->
+      <div id="airportDropdown" class="hidden absolute left-0 top-12 w-72 sm:w-80 frame-card rounded-2xl p-3 z-50 max-h-[70vh] overflow-y-auto shadow-2xl">
+        <div class="text-[10px] font-bold uppercase tracking-wider opacity-60 px-2 pb-1.5 mono">UK Airports</div>
+        <div id="airportDropdownUk" class="grid grid-cols-2 gap-1.5 mb-3"></div>
+        <div class="text-[10px] font-bold uppercase tracking-wider opacity-60 px-2 pb-1.5 mono">International Airports</div>
+        <div id="airportDropdownIntl" class="grid grid-cols-2 gap-1.5"></div>
       </div>
     </div>
 
@@ -166,7 +174,7 @@
       <button id="feedStatusPill" onclick="fetchLiveAirspace(true)" title="Tap to force live radar scan"
         class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border border-slate-300/60 dark:border-slate-700/70 bg-white/80 dark:bg-slate-900/80 backdrop-blur transition active:scale-95">
         <span id="feedStatusDot" class="w-2 h-2 rounded-full bg-amber-500 live-pulse"></span>
-        <span id="feedStatusText" class="mono">SCANNING…</span>
+        <span id="feedStatusText" class="mono">LOADING…</span>
       </button>
 
       <!-- Flightwall Fullscreen -->
@@ -205,7 +213,7 @@
   </header>
 
   <!-- MAIN AMBIENT DISPLAY CANVAS -->
-  <main class="w-full max-w-6xl mx-auto flex-1 my-3 sm:my-4 min-h-0 flex items-center justify-center">
+  <main class="w-full max-w-6xl mx-auto flex-1 my-2.5 sm:my-3 min-h-0 flex items-center justify-center">
     <div id="mainFrameContainer" class="frame-card w-full h-full rounded-3xl overflow-hidden flex flex-col relative">
       <div id="viewMount" class="w-full h-full flex flex-col overflow-hidden"></div>
     </div>
@@ -239,30 +247,27 @@
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-bold">Avioframe Station Settings</h2>
-          <p class="text-xs opacity-65">Pick a UK airport, use GPS, or adjust scan range</p>
+          <p class="text-xs opacity-65">Pick an airport, use GPS, or set radar zoom (10–40 km)</p>
         </div>
         <button onclick="toggleSettings(false)" class="p-2 rounded-full hover:bg-slate-500/10">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
 
-      <!-- UK Airport Presets & GPS -->
+      <!-- UK Airport Presets -->
       <div class="space-y-2">
-        <label class="text-xs font-semibold uppercase tracking-wider opacity-70">Quick Airport Presets</label>
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="setStationPreset(51.5714, 0.6956, 'Southend-on-Sea', 'EGMC')" class="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-sky-500/10 transition">
-            Southend (EGMC)
-          </button>
-          <button onclick="setStationPreset(51.4700, -0.4543, 'London Heathrow', 'EGLL')" class="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-sky-500/10 transition">
-            Heathrow (EGLL)
-          </button>
-          <button onclick="setStationPreset(51.8850, 0.2350, 'London Stansted', 'EGSS')" class="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-sky-500/10 transition">
-            Stansted (EGSS)
-          </button>
-          <button onclick="setStationPreset(53.3537, -2.2750, 'Manchester', 'EGCC')" class="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-sky-500/10 transition">
-            Manchester (EGCC)
-          </button>
-        </div>
+        <label class="text-xs font-semibold uppercase tracking-wider opacity-70">UK Airports</label>
+        <div id="settingsUkGrid" class="grid grid-cols-2 gap-2"></div>
+      </div>
+
+      <!-- International Airport Presets -->
+      <div class="space-y-2">
+        <label class="text-xs font-semibold uppercase tracking-wider opacity-70">International Airports</label>
+        <div id="settingsIntlGrid" class="grid grid-cols-2 gap-2"></div>
+      </div>
+
+      <!-- GPS & Custom Coordinates -->
+      <div class="space-y-2">
         <button onclick="useBrowserGeolocation()" class="w-full px-3 py-2.5 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-500 transition">
           Use Device GPS
         </button>
@@ -278,15 +283,19 @@
         </div>
       </div>
 
-      <!-- Detection Radius -->
+      <!-- Detection Radius / Zoom Range (10 km to 40 km) -->
       <div class="space-y-2">
         <div class="flex justify-between text-xs font-semibold">
-          <span class="uppercase tracking-wider opacity-70">Detection Radius</span>
-          <span id="radiusValueLabel" class="mono text-sky-600 dark:text-sky-400">120 km</span>
+          <span class="uppercase tracking-wider opacity-70">Radar Range (Zoom)</span>
+          <span id="radiusValueLabel" class="mono text-sky-600 dark:text-sky-400">30 km</span>
         </div>
-        <input id="inputRadius" type="range" min="25" max="200" step="5" value="120"
+        <input id="inputRadius" type="range" min="10" max="40" step="5" value="30"
           oninput="document.getElementById('radiusValueLabel').textContent = this.value + ' km'"
           class="w-full accent-sky-600" />
+        <div class="flex justify-between text-[10px] opacity-55 mono">
+          <span>10 km (Close)</span>
+          <span>40 km (Max)</span>
+        </div>
       </div>
 
       <!-- Proximity Chime -->
@@ -296,11 +305,6 @@
           <div class="text-xs opacity-65">Soft chime when a flight passes within 10 km</div>
         </div>
         <input id="inputChime" type="checkbox" class="w-5 h-5 accent-sky-600 rounded" />
-      </div>
-
-      <!-- Relay Info -->
-      <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] mono text-emerald-600 dark:text-emerald-400">
-        RELAY: thebest.stanplayz0612.workers.dev (LIVE ADS-B)
       </div>
 
       <div class="pt-1 flex gap-2">
@@ -316,16 +320,30 @@
 
   <script>
     // =========================================================================
-    // 1. CLOUDFLARE RELAY, UK AIRPORT PRESETS & STATE
+    // 1. CLOUDFLARE RELAY, AIRPORT PRESETS (UK + FOREIGN) & STATE
     // =========================================================================
     const WORKER_URL = 'https://thebest.stanplayz0612.workers.dev/';
-    const UK_SCAN = { lat: 52.35, lon: -0.80, dist: 220 };
+    const UK_SCAN = { lat: 52.35, lon: -0.80, distNm: 220 };
+    const MIN_RADIUS_KM = 10;
+    const MAX_RADIUS_KM = 40;
 
-    const UK_PRESETS = [
-      { icao: 'EGMC', name: 'Southend-on-Sea', lat: 51.5714, lon: 0.6956 },
-      { icao: 'EGLL', name: 'London Heathrow', lat: 51.4700, lon: -0.4543 },
-      { icao: 'EGSS', name: 'London Stansted', lat: 51.8850, lon: 0.2350 },
-      { icao: 'EGCC', name: 'Manchester', lat: 53.3537, lon: -2.2750 }
+    const AIRPORT_PRESETS = [
+      // UK
+      { region: 'uk', icao: 'EGMC', iata: 'SEN', name: 'Southend-on-Sea', lat: 51.5714, lon: 0.6956 },
+      { region: 'uk', icao: 'EGLL', iata: 'LHR', name: 'London Heathrow', lat: 51.4700, lon: -0.4543 },
+      { region: 'uk', icao: 'EGSS', iata: 'STN', name: 'London Stansted', lat: 51.8850, lon: 0.2350 },
+      { region: 'uk', icao: 'EGCC', iata: 'MAN', name: 'Manchester', lat: 53.3537, lon: -2.2750 },
+      // International / Foreign
+      { region: 'intl', icao: 'KJFK', iata: 'JFK', name: 'New York JFK', lat: 40.6413, lon: -73.7781 },
+      { region: 'intl', icao: 'KLAX', iata: 'LAX', name: 'Los Angeles', lat: 33.9416, lon: -118.4085 },
+      { region: 'intl', icao: 'OMDB', iata: 'DXB', name: 'Dubai', lat: 25.2532, lon: 55.3657 },
+      { region: 'intl', icao: 'EHAM', iata: 'AMS', name: 'Amsterdam', lat: 52.3105, lon: 4.7683 },
+      { region: 'intl', icao: 'LFPG', iata: 'CDG', name: 'Paris CDG', lat: 49.0097, lon: 2.5479 },
+      { region: 'intl', icao: 'EDDF', iata: 'FRA', name: 'Frankfurt', lat: 50.0379, lon: 8.5622 },
+      { region: 'intl', icao: 'LEPA', iata: 'PMI', name: 'Palma Mallorca', lat: 39.5517, lon: 2.7388 },
+      { region: 'intl', icao: 'RJTT', iata: 'HND', name: 'Tokyo Haneda', lat: 35.5494, lon: 139.7798 },
+      { region: 'intl', icao: 'WSSS', iata: 'SIN', name: 'Singapore', lat: 1.3644, lon: 103.9915 },
+      { region: 'intl', icao: 'YSSY', iata: 'SYD', name: 'Sydney', lat: -33.9399, lon: 151.1753 }
     ];
 
     const DEFAULT_SETTINGS = {
@@ -333,7 +351,8 @@
       lon: 0.6956,
       locationName: 'Southend-on-Sea',
       stationIcao: 'EGMC',
-      radiusKm: 120,
+      stationIata: 'SEN',
+      radiusKm: 30,
       theme: 'night',
       chime: false
     };
@@ -345,22 +364,44 @@
       flightwall: false,
       wakeLock: null,
       rawScanAircraft: [],
+      lastScanMode: null, // 'uk' | 'custom'
+      lastScanLat: null,
+      lastScanLon: null,
       flights: [],
       selectedIcao: null,
-      feedStatus: 'connecting', // 'live' | 'empty' | 'reconnecting' | 'connecting'
-      lastSuccessTs: 0,
-      isFetching: false
+      feedStatus: 'connecting',
+      lastSuccessTs: 0
     };
 
+    const routeCache = new Map();
+    const routeInFlight = new Set();
     let bootRetryTimer = null;
+    let activeFetchController = null;
+    let activeFetchToken = 0;
+
+    function clampRadius(val) {
+      const n = parseInt(val, 10);
+      if (!Number.isFinite(n)) return DEFAULT_SETTINGS.radiusKm;
+      return Math.min(MAX_RADIUS_KM, Math.max(MIN_RADIUS_KM, n));
+    }
+
+    function resolveStationIata(icao) {
+      const match = AIRPORT_PRESETS.find(p => p.icao === icao);
+      return match ? match.iata : (icao || 'GPS');
+    }
 
     function loadPersistedState() {
       try {
         const saved = JSON.parse(localStorage.getItem('avioframe_gh_settings_v1') || '{}');
         Object.assign(appState, DEFAULT_SETTINGS, saved);
+        appState.radiusKm = clampRadius(appState.radiusKm);
+        if (!appState.stationIata) {
+          appState.stationIata = resolveStationIata(appState.stationIcao);
+        }
       } catch (_) {}
       applyTheme(appState.theme);
       updateStationHeader();
+      renderAirportSelectors();
     }
 
     function persistSettings() {
@@ -370,6 +411,7 @@
           lon: appState.lon,
           locationName: appState.locationName,
           stationIcao: appState.stationIcao,
+          stationIata: appState.stationIata,
           radiusKm: appState.radiusKm,
           theme: appState.theme,
           chime: appState.chime
@@ -407,8 +449,101 @@
       return dirs[Math.round(deg / 45) % 8];
     }
 
+    function formatCoords(lat, lon) {
+      const latStr = `${Math.abs(lat).toFixed(4)}${lat >= 0 ? 'N' : 'S'}`;
+      const lonStr = `${Math.abs(lon).toFixed(4)}${lon >= 0 ? 'E' : 'W'}`;
+      return `${latStr} ${lonStr}`;
+    }
+
     // =========================================================================
-    // 3. AIRLINE & AIRCRAFT DECODER + VECTOR LIVERY ENGINE (NO FAKE ROUTES)
+    // 3. LIVE ROUTE LOOKUP ENGINE (ADSBDB + HEXDB FALLBACK)
+    // =========================================================================
+    function isCommercialCallsign(callsign) {
+      return /^[A-Z]{2,3}[0-9][0-9A-Z]{0,5}$/.test(callsign || '');
+    }
+
+    async function lookupFlightRoute(callsign) {
+      const cs = (callsign || '').trim().toUpperCase();
+      if (!cs || routeCache.has(cs) || routeInFlight.has(cs)) return;
+
+      if (!isCommercialCallsign(cs)) {
+        routeCache.set(cs, null);
+        return;
+      }
+
+      routeInFlight.add(cs);
+      let foundRoute = null;
+
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4500);
+        const res = await fetch(`https://api.adsbdb.com/v0/callsign/${encodeURIComponent(cs)}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        if (res.ok) {
+          const data = await res.json();
+          const fr = data?.response?.flightroute;
+          if (fr && fr.origin && fr.destination) {
+            const oCode = fr.origin.iata_code || fr.origin.icao_code;
+            const dCode = fr.destination.iata_code || fr.destination.icao_code;
+            if (oCode && dCode) {
+              foundRoute = {
+                originCode: oCode,
+                originCity: fr.origin.municipality || fr.origin.name || '',
+                destCode: dCode,
+                destCity: fr.destination.municipality || fr.destination.name || ''
+              };
+            }
+          }
+        }
+      } catch (_) {}
+
+      if (!foundRoute) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 4500);
+          const res = await fetch(`https://hexdb.io/api/v2/routes/${encodeURIComponent(cs)}`, {
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (res.ok) {
+            const h = await res.json();
+            if (h && h.origin && h.destination) {
+              const oCode = h.origin.iata || h.origin.icao;
+              const dCode = h.destination.iata || h.destination.icao;
+              if (oCode && dCode) {
+                foundRoute = {
+                  originCode: oCode,
+                  originCity: h.origin.region || h.origin.name || '',
+                  destCode: dCode,
+                  destCity: h.destination.region || h.destination.name || ''
+                };
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      routeCache.set(cs, foundRoute);
+      routeInFlight.delete(cs);
+
+      if (appState.flights.some(f => f.callsign === cs)) {
+        renderActiveView();
+      }
+    }
+
+    function prefetchNearbyRoutes(limit = 6) {
+      const targets = appState.flights.slice(0, limit);
+      targets.forEach((f, idx) => {
+        if (!routeCache.has(f.callsign) && !routeInFlight.has(f.callsign) && isCommercialCallsign(f.callsign)) {
+          setTimeout(() => lookupFlightRoute(f.callsign), idx * 250);
+        }
+      });
+    }
+
+    // =========================================================================
+    // 4. AIRLINE & AIRCRAFT DECODER + VECTOR LIVERY ENGINE
     // =========================================================================
     const AIRLINE_DB = {
       // UK & Ireland
@@ -484,13 +619,21 @@
       AAL: { name: 'American Airlines', short: 'AMERICAN', primary: '#0078d2', secondary: '#c8102e', tail: '#0078d2' },
       DAL: { name: 'Delta Air Lines', short: 'DELTA', primary: '#003366', secondary: '#c8102e', tail: '#003366' },
       UAL: { name: 'United Airlines', short: 'UNITED', primary: '#002244', secondary: '#005daa', tail: '#002244' },
+      SWA: { name: 'Southwest Airlines', short: 'SOUTHWEST', primary: '#304cb2', secondary: '#ffbf27', tail: '#e51d23' },
+      ASA: { name: 'Alaska Airlines', short: 'ALASKA', primary: '#01426a', secondary: '#00a896', tail: '#01426a' },
       JBU: { name: 'JetBlue Airways', short: 'JETBLUE', primary: '#003876', secondary: '#00a3e0', tail: '#003876' },
+      NKS: { name: 'Spirit Airlines', short: 'SPIRIT', primary: '#facc15', secondary: '#0f172a', tail: '#facc15' },
+      FFT: { name: 'Frontier Airlines', short: 'FRONTIER', primary: '#006643', secondary: '#ffffff', tail: '#006643' },
+      SKW: { name: 'SkyWest Airlines', short: 'SKYWEST', primary: '#004b87', secondary: '#38bdf8', tail: '#004b87' },
+      ENY: { name: 'Envoy Air', short: 'ENVOY', primary: '#0078d2', secondary: '#c8102e', tail: '#0078d2' },
+      RPA: { name: 'Republic Airways', short: 'REPUBLIC', primary: '#1e3a8a', secondary: '#dc2626', tail: '#1e3a8a' },
       ACA: { name: 'Air Canada', short: 'AIR CANADA', primary: '#d80621', secondary: '#0f172a', tail: '#0f172a' },
       TSC: { name: 'Air Transat', short: 'AIR TRANSAT', primary: '#005596', secondary: '#38bdf8', tail: '#005596' },
       WJA: { name: 'WestJet', short: 'WESTJET', primary: '#006272', secondary: '#38bdf8', tail: '#006272' },
 
       // Middle East & Asia-Pacific
       UAE: { name: 'Emirates', short: 'EMIRATES', primary: '#d71921', secondary: '#c69c6d', tail: '#d71921' },
+      FDB: { name: 'flydubai', short: 'FLYDUBAI', primary: '#005eb8', secondary: '#f97316', tail: '#005eb8' },
       QTR: { name: 'Qatar Airways', short: 'QATAR', primary: '#5c0632', secondary: '#a69f98', tail: '#5c0632' },
       ETD: { name: 'Etihad Airways', short: 'ETIHAD', primary: '#bd8b13', secondary: '#3b2314', tail: '#bd8b13' },
       SVA: { name: 'Saudia', short: 'SAUDIA', primary: '#006c35', secondary: '#c69c6d', tail: '#006c35' },
@@ -500,9 +643,11 @@
       KAC: { name: 'Kuwait Airways', short: 'KUWAIT AIRWAYS', primary: '#005596', secondary: '#38bdf8', tail: '#005596' },
       ELY: { name: 'El Al Israel Airlines', short: 'EL AL', primary: '#0038b8', secondary: '#ffffff', tail: '#0038b8' },
       SIA: { name: 'Singapore Airlines', short: 'SINGAPORE', primary: '#00266b', secondary: '#f1ab00', tail: '#00266b' },
+      TGW: { name: 'Scoot', short: 'SCOOT', primary: '#facc15', secondary: '#0f172a', tail: '#facc15' },
       CPA: { name: 'Cathay Pacific', short: 'CATHAY PACIFIC', primary: '#006564', secondary: '#c8102e', tail: '#006564' },
       JAL: { name: 'Japan Airlines', short: 'JAPAN AIRLINES', primary: '#cc0000', secondary: '#ffffff', tail: '#cc0000' },
       ANA: { name: 'All Nippon Airways', short: 'ANA', primary: '#00469b', secondary: '#38bdf8', tail: '#00469b' },
+      SKY: { name: 'Skymark Airlines', short: 'SKYMARK', primary: '#003399', secondary: '#facc15', tail: '#003399' },
       KAL: { name: 'Korean Air', short: 'KOREAN AIR', primary: '#0064de', secondary: '#ffffff', tail: '#0064de' },
       AAR: { name: 'Asiana Airlines', short: 'ASIANA', primary: '#d81e05', secondary: '#facc15', tail: '#d81e05' },
       EVA: { name: 'EVA Air', short: 'EVA AIR', primary: '#006633', secondary: '#f97316', tail: '#006633' },
@@ -511,10 +656,14 @@
       CES: { name: 'China Eastern Airlines', short: 'CHINA EASTERN', primary: '#003399', secondary: '#dc2626', tail: '#003399' },
       CSN: { name: 'China Southern Airlines', short: 'CHINA SOUTHERN', primary: '#0088ce', secondary: '#dc2626', tail: '#0088ce' },
       AIC: { name: 'Air India', short: 'AIR INDIA', primary: '#da291c', secondary: '#f59e0b', tail: '#da291c' },
+      IGO: { name: 'IndiGo', short: 'INDIGO', primary: '#1e3a8a', secondary: '#38bdf8', tail: '#1e3a8a' },
       THA: { name: 'Thai Airways', short: 'THAI AIRWAYS', primary: '#4b0082', secondary: '#eab308', tail: '#4b0082' },
       MAS: { name: 'Malaysia Airlines', short: 'MALAYSIA', primary: '#002664', secondary: '#d81e05', tail: '#002664' },
       HVN: { name: 'Vietnam Airlines', short: 'VIETNAM AIRLINES', primary: '#00558f', secondary: '#d4af37', tail: '#00558f' },
       QFA: { name: 'Qantas', short: 'QANTAS', primary: '#e40000', secondary: '#ffffff', tail: '#e40000' },
+      VOZ: { name: 'Virgin Australia', short: 'VIRGIN AUS', primary: '#dc2626', secondary: '#6b21a8', tail: '#dc2626' },
+      JST: { name: 'Jetstar Airways', short: 'JETSTAR', primary: '#ff5500', secondary: '#94a3b8', tail: '#ff5500' },
+      ANZ: { name: 'Air New Zealand', short: 'AIR NZ', primary: '#0f172a', secondary: '#14b8a6', tail: '#0f172a' },
 
       // Cargo & Freight
       DHK: { name: 'DHL Air UK', short: 'DHL CARGO', primary: '#ffcc00', secondary: '#d40511', tail: '#ffcc00' },
@@ -551,10 +700,11 @@
       EW: 'EWG', AF: 'AFR', LX: 'SWR', OS: 'AUA', SN: 'BEL', IB: 'IBE', VY: 'VLG',
       TP: 'TAP', AZ: 'ITY', DY: 'NOZ', SK: 'SAS', AY: 'FIN', FI: 'ICE', W6: 'WZZ',
       W9: 'WUK', LO: 'LOT', A3: 'AEE', TK: 'THY', PC: 'PGT', BT: 'BTI', AA: 'AAL',
-      DL: 'DAL', UA: 'UAL', B6: 'JBU', AC: 'ACA', TS: 'TSC', WS: 'WJA', EK: 'UAE',
-      QR: 'QTR', EY: 'ETD', SV: 'SVA', SQ: 'SIA', CX: 'CPA', JL: 'JAL', NH: 'ANA',
-      KE: 'KAL', OZ: 'AAR', BR: 'EVA', CI: 'CAL', CA: 'CCA', MU: 'CES', CZ: 'CSN',
-      AI: 'AIC', TG: 'THA', MH: 'MAS', VN: 'HVN', QF: 'QFA', D0: 'DHK', FX: 'FDX',
+      DL: 'DAL', UA: 'UAL', WN: 'SWA', AS: 'ASA', B6: 'JBU', AC: 'ACA', TS: 'TSC',
+      WS: 'WJA', EK: 'UAE', FZ: 'FDB', QR: 'QTR', EY: 'ETD', SV: 'SVA', SQ: 'SIA',
+      CX: 'CPA', JL: 'JAL', NH: 'ANA', KE: 'KAL', OZ: 'AAR', BR: 'EVA', CI: 'CAL',
+      CA: 'CCA', MU: 'CES', CZ: 'CSN', AI: 'AIC', '6E': 'IGO', TG: 'THA', MH: 'MAS',
+      VN: 'HVN', QF: 'QFA', VA: 'VOZ', JQ: 'JST', NZ: 'ANZ', D0: 'DHK', FX: 'FDX',
       '5X': 'UPS', CV: 'CLX'
     };
 
@@ -578,7 +728,11 @@
       { re: /^I-/, label: 'Italian Civil Aircraft' },
       { re: /^SP-/, label: 'Polish Civil Aircraft' },
       { re: /^9H-/, label: 'Maltese Charter / Bizjet' },
-      { re: /^LX-/, label: 'Luxembourg Registered Aircraft' }
+      { re: /^LX-/, label: 'Luxembourg Registered Aircraft' },
+      { re: /^A6-/, label: 'UAE Registered Aircraft' },
+      { re: /^JA/, label: 'Japanese Civil Aircraft' },
+      { re: /^VH-/, label: 'Australian Civil Aircraft' },
+      { re: /^9V-/, label: 'Singapore Registered Aircraft' }
     ];
 
     function identifyAirline(callsign, extraHints = {}) {
@@ -645,6 +799,7 @@
         B737: 'Boeing 737-700',
         B738: 'Boeing 737-800',
         B38M: 'Boeing 737 MAX 8',
+        B39M: 'Boeing 737 MAX 9',
         B739: 'Boeing 737-900ER',
         B752: 'Boeing 757-200',
         B763: 'Boeing 767-300ER',
@@ -656,9 +811,11 @@
         B744: 'Boeing 747-400',
         B748: 'Boeing 747-8F',
         E170: 'Embraer E170',
+        E75L: 'Embraer E175',
         E190: 'Embraer E190',
         E290: 'Embraer E190-E2',
         E295: 'Embraer E195-E2',
+        CRJ9: 'Bombardier CRJ-900',
         BCS1: 'Airbus A220-100',
         BCS3: 'Airbus A220-300',
         AT76: 'ATR 72-600',
@@ -683,7 +840,7 @@
       const secondary = airline?.secondary || '#38bdf8';
       const tail = airline?.tail || primary;
       return `
-        <svg viewBox="0 0 560 175" class="w-full h-auto max-h-40 sm:max-h-48 drop-shadow-md plane-float" aria-hidden="true">
+        <svg viewBox="0 0 560 175" class="w-full h-auto max-h-36 sm:max-h-44 drop-shadow-md plane-float" aria-hidden="true">
           <defs>
             <linearGradient id="fuselageGrad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#ffffff"/>
@@ -732,9 +889,22 @@
     }
 
     // =========================================================================
-    // 4. CLOUDFLARE WORKER LIVE FEED + INSTANT AIRPORT SWITCHING
+    // 5. CLOUDFLARE WORKER LIVE FEED (INSTANT UK SWITCH + GLOBAL FOREIGN SCAN)
     // =========================================================================
     let lastChimedIcao = null;
+
+    function isStationInUkScan(lat, lon) {
+      return haversineKm(lat, lon, UK_SCAN.lat, UK_SCAN.lon) <= 250;
+    }
+
+    function canReuseExistingScan(lat, lon) {
+      if (appState.rawScanAircraft.length === 0) return false;
+      if (appState.lastScanMode === 'uk' && isStationInUkScan(lat, lon)) return true;
+      if (appState.lastScanMode === 'custom' && appState.lastScanLat != null && appState.lastScanLon != null) {
+        return haversineKm(lat, lon, appState.lastScanLat, appState.lastScanLon) <= 10;
+      }
+      return false;
+    }
 
     function rebuildFlightsForStation() {
       const mapped = appState.rawScanAircraft
@@ -777,9 +947,7 @@
             velocityMs,
             heading: Number(ac.track) || 0,
             verticalRateFpm: baroRateFpm,
-            squawk: String(ac.squawk || ''),
-            stationCode: appState.stationIcao || 'RX',
-            stationCity: appState.locationName
+            squawk: String(ac.squawk || '')
           };
         })
         .sort((a, b) => a.distKm - b.distKm);
@@ -792,7 +960,6 @@
         appState.selectedIcao = appState.flights[0]?.icao24 || null;
       }
 
-      // Proximity chime check
       if (appState.chime && appState.flights.length > 0) {
         const closest = appState.flights[0];
         if (closest.distKm <= 10 && lastChimedIcao !== closest.icao24) {
@@ -803,64 +970,83 @@
 
       updateFeedStatusUI();
       renderActiveView();
+      prefetchNearbyRoutes(6);
     }
 
     async function fetchLiveAirspace(manual = false) {
-      if (appState.isFetching) return;
-      appState.isFetching = true;
       if (bootRetryTimer) clearTimeout(bootRetryTimer);
+
+      // Abort any previous in-flight request when switching airports manually
+      if (manual && activeFetchController) {
+        activeFetchController.abort();
+      } else if (!manual && activeFetchController) {
+        return;
+      }
+
+      activeFetchToken++;
+      const token = activeFetchToken;
+      const controller = new AbortController();
+      activeFetchController = controller;
 
       if (appState.rawScanAircraft.length === 0 || manual) {
         updateFeedStatusUI('connecting');
       }
 
-      // Use single wide UK scan for UK airports (instant switching!), or custom station if outside UK
-      const distFromUkCenter = haversineKm(appState.lat, appState.lon, UK_SCAN.lat, UK_SCAN.lon);
-      const useUkScan = distFromUkCenter <= 250;
+      const useUkScan = isStationInUkScan(appState.lat, appState.lon);
       const scanLat = useUkScan ? UK_SCAN.lat : appState.lat;
       const scanLon = useUkScan ? UK_SCAN.lon : appState.lon;
-      const scanDistNm = useUkScan ? UK_SCAN.dist : Math.min(220, Math.max(40, Math.round(appState.radiusKm * 0.54)));
+      const scanDistNm = useUkScan ? UK_SCAN.distNm : 35; // 35 nm (~65 km) comfortably covers 40 km max zoom
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
 
       try {
         const url = `${WORKER_URL}?lat=${scanLat.toFixed(4)}&lon=${scanLon.toFixed(4)}&dist=${scanDistNm}&_t=${Date.now()}`;
         const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
         clearTimeout(timeoutId);
+        if (token !== activeFetchToken) return;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
+        if (token !== activeFetchToken) return;
+
         const rawList = (data.ac || data.aircraft || []).filter(
           a => Number.isFinite(a.lat) && Number.isFinite(a.lon) && a.alt_baro !== 'ground'
         );
+
+        appState.lastScanMode = useUkScan ? 'uk' : 'custom';
+        appState.lastScanLat = scanLat;
+        appState.lastScanLon = scanLon;
 
         if (rawList.length > 0) {
           appState.rawScanAircraft = rawList;
           appState.lastSuccessTs = Date.now();
           rebuildFlightsForStation();
-        } else if (appState.rawScanAircraft.length === 0) {
-          appState.feedStatus = 'connecting';
-          updateFeedStatusUI('connecting');
-          bootRetryTimer = setTimeout(() => fetchLiveAirspace(false), 5000);
         } else {
-          rebuildFlightsForStation();
+          appState.rawScanAircraft = [];
+          appState.flights = [];
+          appState.feedStatus = 'empty';
+          updateFeedStatusUI('empty');
+          renderActiveView();
         }
-      } catch (_) {
+      } catch (err) {
         clearTimeout(timeoutId);
+        if (token !== activeFetchToken) return;
         if (appState.flights.length > 0 && (Date.now() - appState.lastSuccessTs) < 60000) {
           updateFeedStatusUI('reconnecting');
         } else {
           appState.feedStatus = 'connecting';
           updateFeedStatusUI('connecting');
+          renderActiveView();
           bootRetryTimer = setTimeout(() => fetchLiveAirspace(false), 5000);
         }
       } finally {
-        appState.isFetching = false;
+        if (activeFetchController === controller) {
+          activeFetchController = null;
+        }
       }
     }
 
-    // 1-Second Smooth Kinematics (glides aircraft smoothly between 20s radar polls)
+    // 1-Second Smooth Kinematics
     function tickOneSecondKinematics() {
       if (appState.flights.length === 0) return;
 
@@ -881,7 +1067,6 @@
         }
       }
 
-      // Smooth in-place update on Poster view (no DOM flicker)
       if (appState.view === 'poster') {
         const active = appState.flights.find(f => f.icao24 === appState.selectedIcao) || appState.flights[0];
         if (active) {
@@ -912,7 +1097,7 @@
     }
 
     // =========================================================================
-    // 5. VIEW RENDERERS (POSTER, RADAR, ARRIVALS BOARD)
+    // 6. VIEW RENDERERS (POSTER, RADAR, ARRIVALS BOARD)
     // =========================================================================
     function switchView(viewName) {
       appState.view = viewName;
@@ -923,6 +1108,7 @@
         btn.classList.toggle('opacity-70', !active);
       });
       renderActiveView();
+      if (viewName === 'board') prefetchNearbyRoutes(10);
     }
 
     function renderActiveView() {
@@ -943,19 +1129,19 @@
             </svg>
           </div>
           <h2 class="text-xl sm:text-2xl font-bold">
-            ${isEmpty ? `Clear Skies Above ${appState.locationName}` : `Scanning Live Airspace (${appState.stationIcao})…`}
+            ${isEmpty ? `Clear Skies Above ${appState.locationName}` : `Loading Live Flights (${appState.stationIata})…`}
           </h2>
           <p class="text-sm opacity-75 leading-relaxed">
             ${isEmpty
-              ? `No airborne transponders are currently inside your ${appState.radiusKm} km radius. Try widening the radius in Settings or switching airports.`
-              : `Connecting to live ADS-B radar via your Cloudflare relay. Real overhead flights will appear automatically in a few seconds.`}
+              ? `No airborne aircraft are currently within ${appState.radiusKm} km of ${appState.locationName}. Try zooming out to 40 km or picking another airport.`
+              : `Connecting to live ADS-B radar for ${appState.locationName}. <strong>May take a while</strong> — real flights will pop up automatically.`}
           </p>
           <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
             <button onclick="fetchLiveAirspace(true)" class="px-4 py-2.5 rounded-xl bg-sky-600 text-white text-xs font-semibold hover:bg-sky-500 transition">
               Sync Now
             </button>
-            <button onclick="cycleAirport()" class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-500/10 transition">
-              Switch Airport
+            <button onclick="toggleAirportMenu(event)" class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-500/10 transition">
+              Choose Airport
             </button>
           </div>
         </div>
@@ -970,24 +1156,67 @@
       }
 
       const flight = appState.flights.find(f => f.icao24 === appState.selectedIcao) || appState.flights[0];
+      lookupFlightRoute(flight.callsign);
+
+      const route = routeCache.get(flight.callsign);
+      const isCheckingRoute = routeInFlight.has(flight.callsign);
       const vTrend = flight.verticalRateFpm > 180
-        ? `CLIMBING • +${flight.verticalRateFpm} fpm`
+        ? `CLIMBING • +${flight.verticalRateFpm} FPM`
         : flight.verticalRateFpm < -180
-          ? `DESCENDING • ${flight.verticalRateFpm} fpm`
+          ? `DESCENDING • ${flight.verticalRateFpm} FPM`
           : 'CRUISING • LEVEL';
 
+      const routeBarHtml = route
+        ? `
+          <div class="w-full max-w-xl mt-2 flex items-center justify-between gap-4 px-2">
+            <div class="text-left min-w-0">
+              <div class="text-2xl sm:text-3xl font-extrabold mono">${route.originCode}</div>
+              <div class="text-xs opacity-65 truncate max-w-[140px]">${route.originCity || 'Departure'}</div>
+            </div>
+            <div class="flex-1 flex flex-col items-center">
+              <span class="text-[11px] font-bold tracking-widest uppercase opacity-70 mb-1 mono text-center">${vTrend}</span>
+              <div class="w-full h-[2px] bg-slate-300 dark:bg-slate-700 relative flex items-center justify-center">
+                <div class="w-3 h-3 rounded-full bg-sky-500 ring-4 ring-sky-500/20"></div>
+              </div>
+              <span class="text-[10px] opacity-55 mono mt-1">OVER ${appState.stationIata}</span>
+            </div>
+            <div class="text-right min-w-0">
+              <div class="text-2xl sm:text-3xl font-extrabold mono">${route.destCode}</div>
+              <div class="text-xs opacity-65 truncate max-w-[140px]">${route.destCity || 'Arrival'}</div>
+            </div>
+          </div>
+        `
+        : `
+          <div class="w-full max-w-xl mt-2 flex items-center justify-between gap-4 px-2">
+            <div class="text-left min-w-0">
+              <div class="text-2xl sm:text-3xl font-extrabold mono text-sky-600 dark:text-sky-400">OVER ${appState.stationIata}</div>
+              <div class="text-xs opacity-65 truncate max-w-[150px]">${appState.locationName}</div>
+            </div>
+            <div class="flex-1 flex flex-col items-center">
+              <span class="text-[11px] font-bold tracking-widest uppercase opacity-70 mb-1 mono text-center">${vTrend}</span>
+              <div class="w-full h-[2px] bg-slate-300 dark:bg-slate-700 relative flex items-center justify-center">
+                <div class="w-3 h-3 rounded-full bg-sky-500 ring-4 ring-sky-500/20"></div>
+              </div>
+            </div>
+            <div class="text-right min-w-0">
+              <div class="text-2xl sm:text-3xl font-extrabold mono">${Math.round(flight.heading)}° ${compassSector(flight.heading)}</div>
+              <div class="text-xs opacity-65">${isCheckingRoute ? 'Looking up route…' : 'Route Unlisted'}</div>
+            </div>
+          </div>
+        `;
+
       mount.innerHTML = `
-        <div class="w-full h-full flex flex-col justify-between p-6 sm:p-10 md:p-12 overflow-y-auto">
+        <div class="w-full h-full flex flex-col justify-between p-5 sm:p-8 overflow-y-auto">
           <!-- Top Airline & Callsign Header -->
-          <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase mb-2"
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase mb-1.5"
                    style="background: ${flight.airline.primary}22; color: ${flight.airline.primary};">
                 <span class="w-2 h-2 rounded-full" style="background: ${flight.airline.primary};"></span>
                 <span>${flight.airline.name}</span>
               </div>
-              <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight mono">${flight.callsign}</h1>
-              <p class="text-sm sm:text-base opacity-70 mt-1 font-medium">
+              <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight mono">${flight.callsign}</h1>
+              <p class="text-sm opacity-70 mt-0.5 font-medium">
                 ${flight.modelName} ${flight.reg ? '• ' + flight.reg : ''}
               </p>
             </div>
@@ -1004,32 +1233,17 @@
             </div>
           </div>
 
-          <!-- Center Aircraft Vector Livery (Tap to toggle Flightwall) -->
-          <div class="my-4 sm:my-6 flex flex-col items-center justify-center">
+          <!-- Center Aircraft Vector Livery + Real Route / OVER Airport Bar -->
+          <div class="my-2 sm:my-3 flex flex-col items-center justify-center">
             <div onclick="toggleFlightwall()" title="Tap for Flightwall Fullscreen" class="w-full flex justify-center cursor-pointer">
               ${buildLiverySVG(flight.airline)}
             </div>
-            <div class="w-full max-w-xl mt-4 flex items-center justify-between gap-4 px-2">
-              <div class="text-left">
-                <div class="text-2xl sm:text-3xl font-extrabold mono">${flight.stationCode}</div>
-                <div class="text-xs opacity-65 truncate max-w-[130px]">${flight.stationCity}</div>
-              </div>
-              <div class="flex-1 flex flex-col items-center">
-                <span class="text-[11px] font-bold tracking-widest uppercase opacity-65 mb-1 mono text-center">${vTrend}</span>
-                <div class="w-full h-[2px] bg-slate-300 dark:bg-slate-700 relative flex items-center justify-center">
-                  <div class="w-3 h-3 rounded-full bg-sky-500 ring-4 ring-sky-500/20"></div>
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="text-2xl sm:text-3xl font-extrabold mono">LIVE</div>
-                <div class="text-xs opacity-65">ADS-B Track</div>
-              </div>
-            </div>
+            ${routeBarHtml}
           </div>
 
           <!-- Bottom Telemetry Strip + Traffic Switcher -->
-          <div class="space-y-4">
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-200/80 dark:border-slate-800">
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-slate-200/80 dark:border-slate-800">
               <div>
                 <div class="text-[11px] uppercase tracking-wider opacity-60 font-semibold">Altitude</div>
                 <div id="poster-alt-m" class="text-lg sm:text-xl font-bold mono">${flight.altMeters.toLocaleString()} m</div>
@@ -1068,12 +1282,28 @@
       `;
     }
 
-    // VIEW 2: LIVE ATC PHOSPHOR RADAR SCOPE
+    // VIEW 2: LIVE ATC PHOSPHOR RADAR SCOPE WITH 10–40 KM ZOOM CONTROLS
     let radarAnimId = null;
     let radarSweepAngle = 0;
 
+    function adjustRadarZoom(deltaKm) {
+      const next = clampRadius(appState.radiusKm + deltaKm);
+      if (next === appState.radiusKm) return;
+      appState.radiusKm = next;
+      persistSettings();
+      if (appState.rawScanAircraft.length > 0) {
+        rebuildFlightsForStation();
+      } else {
+        updateFeedStatusUI();
+        renderActiveView();
+      }
+      showToast(`Radar range: ${appState.radiusKm} km`);
+    }
+
     function renderRadarView(mount) {
       const selected = appState.flights.find(f => f.icao24 === appState.selectedIcao) || appState.flights[0] || null;
+      if (selected) lookupFlightRoute(selected.callsign);
+      const selRoute = selected ? routeCache.get(selected.callsign) : null;
 
       mount.innerHTML = `
         <div class="w-full h-full grid grid-cols-1 lg:grid-cols-3 bg-[#060d0a] text-emerald-400 overflow-hidden">
@@ -1081,8 +1311,16 @@
           <div id="radarCanvasWrap" class="lg:col-span-2 relative w-full h-full min-h-[280px] flex items-center justify-center overflow-hidden">
             <canvas id="atcRadarCanvas" class="w-full h-full block cursor-crosshair"></canvas>
             <div class="absolute top-3 left-3 text-[11px] mono text-emerald-400/80 pointer-events-none">
-              <div>STATION: ${appState.stationIcao} • RNG: ${appState.radiusKm} KM</div>
-              <div>CTR: ${appState.lat.toFixed(4)}N ${appState.lon.toFixed(4)}E</div>
+              <div>STATION: ${appState.stationIata} (${appState.stationIcao}) • RNG: ${appState.radiusKm} KM</div>
+              <div>CTR: ${formatCoords(appState.lat, appState.lon)}</div>
+            </div>
+            <!-- Quick Zoom In/Out (10 km – 40 km) -->
+            <div class="absolute top-3 right-3 flex items-center gap-1 bg-[#08130f]/90 border border-emerald-500/30 rounded-xl p-1 mono text-xs">
+              <button onclick="adjustRadarZoom(-5)" ${appState.radiusKm <= MIN_RADIUS_KM ? 'disabled' : ''} title="Zoom In (Min 10 km)"
+                class="w-7 h-7 rounded-lg hover:bg-emerald-500/20 disabled:opacity-30 font-bold">+</button>
+              <span class="px-1.5 text-[11px]">${appState.radiusKm}km</span>
+              <button onclick="adjustRadarZoom(5)" ${appState.radiusKm >= MAX_RADIUS_KM ? 'disabled' : ''} title="Zoom Out (Max 40 km)"
+                class="w-7 h-7 rounded-lg hover:bg-emerald-500/20 disabled:opacity-30 font-bold">−</button>
             </div>
           </div>
 
@@ -1115,13 +1353,17 @@
                     <div class="font-bold truncate">${selected.typeCode || '---'} ${selected.reg}</div>
                   </div>
                   <div class="p-2 rounded bg-emerald-500/5 border border-emerald-500/15">
-                    <div class="text-[10px] opacity-60">HEADING / SQK</div>
-                    <div class="font-bold">${Math.round(selected.heading)}° • ${selected.squawk || '----'}</div>
+                    <div class="text-[10px] opacity-60">${selRoute ? 'ROUTE' : 'SECTOR'}</div>
+                    <div class="font-bold truncate">${selRoute ? `${selRoute.originCode} → ${selRoute.destCode}` : `OVER ${appState.stationIata}`}</div>
                   </div>
                 </div>
               </div>
             ` : `
-              <div class="text-xs mono opacity-70 py-4">SCANNING ${appState.stationIcao} SECTOR…</div>
+              <div class="text-xs mono opacity-75 py-4">
+                ${appState.feedStatus === 'empty'
+                  ? `NO AIRCRAFT WITHIN ${appState.radiusKm} KM OF ${appState.stationIata}`
+                  : `LOADING ${appState.stationIata} RADAR… MAY TAKE A WHILE`}
+              </div>
             `}
 
             <div class="mt-4 flex-1 overflow-y-auto space-y-1.5">
@@ -1195,7 +1437,6 @@
         ctx.fillStyle = '#060d0a';
         ctx.fillRect(0, 0, w, h);
 
-        // Concentric range rings
         ctx.strokeStyle = 'rgba(16, 185, 129, 0.22)';
         ctx.lineWidth = 1;
         for (let i = 1; i <= 3; i++) {
@@ -1204,7 +1445,6 @@
           ctx.stroke();
         }
 
-        // Crosshairs
         ctx.beginPath();
         ctx.moveTo(cx - maxR, cy);
         ctx.lineTo(cx + maxR, cy);
@@ -1218,9 +1458,8 @@
         ctx.strokeRect(cx - 4, cy - 4, 8, 8);
         ctx.font = '700 10px "JetBrains Mono", monospace';
         ctx.fillStyle = '#f59e0b';
-        ctx.fillText(appState.stationIcao, cx + 8, cy + 3);
+        ctx.fillText(appState.stationIata, cx + 8, cy + 3);
 
-        // Rotating sweep wedge
         radarSweepAngle = (radarSweepAngle + 0.022) % (Math.PI * 2);
         ctx.save();
         ctx.translate(cx, cy);
@@ -1243,7 +1482,6 @@
         ctx.stroke();
         ctx.restore();
 
-        // Aircraft blips
         for (const f of appState.flights) {
           const r = Math.min(maxR, (f.distKm / appState.radiusKm) * maxR);
           const rad = toRad(f.bearing - 90);
@@ -1286,79 +1524,140 @@
           <div class="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
               <div class="text-xs uppercase tracking-widest text-amber-400 font-bold mono">OVERHEAD SECTOR LIVE TRAFFIC</div>
-              <h2 class="text-xl sm:text-2xl font-bold tracking-tight mt-0.5">${appState.locationName.toUpperCase()} (${appState.stationIcao})</h2>
+              <h2 class="text-xl sm:text-2xl font-bold tracking-tight mt-0.5">${appState.locationName.toUpperCase()} (${appState.stationIata})</h2>
             </div>
             <div class="text-right mono text-xs text-slate-400">
               <div>${appState.flights.length} LIVE FLIGHTS</div>
-              <div>LIVE ADS-B RELAY</div>
+              <div>WITHIN ${appState.radiusKm} KM</div>
             </div>
           </div>
 
           <div class="grid grid-cols-12 gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 py-3 px-2 mono">
             <div class="col-span-3">FLIGHT</div>
             <div class="col-span-4">OPERATOR / TYPE</div>
-            <div class="col-span-2">HDG / SPD</div>
+            <div class="col-span-2">ROUTE</div>
             <div class="col-span-3 text-right">DIST / ALT</div>
           </div>
 
           <div class="flex-1 overflow-y-auto space-y-2 pr-1">
-            ${appState.flights.map(f => `
-              <button onclick="selectAircraft('${f.icao24}'); switchView('poster');"
-                class="w-full grid grid-cols-12 gap-2 items-center p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800/80 text-left transition">
-                <div class="col-span-3">
-                  <span class="flap-tile inline-block px-2 py-1 text-xs sm:text-sm font-bold text-amber-300">${f.callsign}</span>
-                </div>
-                <div class="col-span-4 truncate">
-                  <div class="text-xs sm:text-sm font-semibold text-slate-200 truncate">${f.airline.name}</div>
-                  <div class="text-[11px] text-slate-400 truncate">${f.modelName}</div>
-                </div>
-                <div class="col-span-2 mono text-xs text-sky-400 font-bold">
-                  <div>${Math.round(f.heading)}°</div>
-                  <div class="text-[11px] text-slate-400">${f.speedKnots} kt</div>
-                </div>
-                <div class="col-span-3 text-right mono text-xs">
-                  <div class="font-bold text-emerald-400">${f.distKm.toFixed(1)} km</div>
-                  <div class="text-[11px] text-slate-400">${f.altFeet.toLocaleString()} ft</div>
-                </div>
-              </button>
-            `).join('')}
+            ${appState.flights.map(f => {
+              const r = routeCache.get(f.callsign);
+              const routeLabel = r ? `${r.originCode}→${r.destCode}` : `OVER ${appState.stationIata}`;
+              return `
+                <button onclick="selectAircraft('${f.icao24}'); switchView('poster');"
+                  class="w-full grid grid-cols-12 gap-2 items-center p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800/80 text-left transition">
+                  <div class="col-span-3">
+                    <span class="flap-tile inline-block px-2 py-1 text-xs sm:text-sm font-bold text-amber-300">${f.callsign}</span>
+                  </div>
+                  <div class="col-span-4 truncate">
+                    <div class="text-xs sm:text-sm font-semibold text-slate-200 truncate">${f.airline.name}</div>
+                    <div class="text-[11px] text-slate-400 truncate">${f.modelName}</div>
+                  </div>
+                  <div class="col-span-2 mono text-xs font-bold ${r ? 'text-sky-400' : 'text-slate-400'}">
+                    ${routeLabel}
+                  </div>
+                  <div class="col-span-3 text-right mono text-xs">
+                    <div class="font-bold text-emerald-400">${f.distKm.toFixed(1)} km</div>
+                    <div class="text-[11px] text-slate-400">${f.altFeet.toLocaleString()} ft</div>
+                  </div>
+                </button>
+              `;
+            }).join('')}
           </div>
         </div>
       `;
     }
 
     // =========================================================================
-    // 6. UI CONTROLS, FLIGHTWALL, AIRPORT CYCLER, KIOSK & WAKE LOCK
+    // 7. AIRPORT PICKER, UI CONTROLS, FLIGHTWALL, KIOSK & WAKE LOCK
     // =========================================================================
-    function selectAircraft(icao24) {
-      appState.selectedIcao = icao24;
-      renderActiveView();
+    function renderAirportSelectors() {
+      const ukList = AIRPORT_PRESETS.filter(a => a.region === 'uk');
+      const intlList = AIRPORT_PRESETS.filter(a => a.region === 'intl');
+
+      const makeDropdownBtn = (a) => {
+        const active = a.icao === appState.stationIcao;
+        return `
+          <button onclick="selectAirportPreset('${a.icao}')"
+            class="px-2.5 py-2 rounded-xl text-left text-xs transition border ${active ? 'bg-sky-600 text-white border-sky-500 font-bold' : 'border-slate-300/40 dark:border-slate-700/70 hover:bg-sky-500/15'}">
+            <div class="mono font-bold">${a.iata}</div>
+            <div class="text-[10px] opacity-80 truncate">${a.name}</div>
+          </button>
+        `;
+      };
+
+      const makeSettingsBtn = (a) => `
+        <button onclick="setStationPreset(${a.lat}, ${a.lon}, '${a.name.replace(/'/g, "\\'")}', '${a.icao}', '${a.iata}')"
+          class="px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-sky-500/10 transition text-left">
+          <span class="mono text-sky-500 mr-1">${a.iata}</span> ${a.name}
+        </button>
+      `;
+
+      const ddUk = document.getElementById('airportDropdownUk');
+      const ddIntl = document.getElementById('airportDropdownIntl');
+      const setUk = document.getElementById('settingsUkGrid');
+      const setIntl = document.getElementById('settingsIntlGrid');
+
+      if (ddUk) ddUk.innerHTML = ukList.map(makeDropdownBtn).join('');
+      if (ddIntl) ddIntl.innerHTML = intlList.map(makeDropdownBtn).join('');
+      if (setUk) setUk.innerHTML = ukList.map(makeSettingsBtn).join('');
+      if (setIntl) setIntl.innerHTML = intlList.map(makeSettingsBtn).join('');
     }
 
-    function cycleAirport() {
-      const idx = UK_PRESETS.findIndex(p => p.icao === appState.stationIcao);
-      const next = UK_PRESETS[(idx + 1) % UK_PRESETS.length];
-      appState.lat = next.lat;
-      appState.lon = next.lon;
-      appState.locationName = next.name;
-      appState.stationIcao = next.icao;
+    function toggleAirportMenu(e) {
+      if (e) e.stopPropagation();
+      const dd = document.getElementById('airportDropdown');
+      if (!dd) return;
+      renderAirportSelectors();
+      dd.classList.toggle('hidden');
+    }
+
+    document.addEventListener('click', (e) => {
+      const dd = document.getElementById('airportDropdown');
+      const badge = document.getElementById('stationBadge');
+      if (dd && !dd.classList.contains('hidden') && !dd.contains(e.target) && !badge.contains(e.target)) {
+        dd.classList.add('hidden');
+      }
+    });
+
+    function selectAirportPreset(icao) {
+      const preset = AIRPORT_PRESETS.find(p => p.icao === icao);
+      if (!preset) return;
+      document.getElementById('airportDropdown')?.classList.add('hidden');
+
+      appState.lat = preset.lat;
+      appState.lon = preset.lon;
+      appState.locationName = preset.name;
+      appState.stationIcao = preset.icao;
+      appState.stationIata = preset.iata;
       appState.selectedIcao = null;
       persistSettings();
       updateStationHeader();
-      showToast(`Switched to ${next.name} (${next.icao})`);
+      renderAirportSelectors();
 
-      if (appState.rawScanAircraft.length > 0) {
+      if (canReuseExistingScan(preset.lat, preset.lon)) {
+        showToast(`Switched to ${preset.name} (${preset.iata})`);
         rebuildFlightsForStation();
       } else {
+        appState.rawScanAircraft = [];
+        appState.flights = [];
+        appState.feedStatus = 'connecting';
+        showToast(`Loading ${preset.name} (${preset.iata}) — may take a while`);
+        updateFeedStatusUI('connecting');
         renderActiveView();
         fetchLiveAirspace(true);
       }
     }
 
+    function selectAircraft(icao24) {
+      appState.selectedIcao = icao24;
+      renderActiveView();
+    }
+
     function updateStationHeader() {
       const text = document.getElementById('stationBadgeText');
       if (text) {
-        text.textContent = `${appState.locationName.toUpperCase()} (${appState.stationIcao})`;
+        text.textContent = `${appState.locationName.toUpperCase()} (${appState.stationIata})`;
       }
     }
 
@@ -1372,20 +1671,20 @@
       dot.className = 'w-2 h-2 rounded-full live-pulse';
       if (state === 'live') {
         dot.classList.add('bg-emerald-500');
-        text.textContent = `${appState.stationIcao} LIVE • ${appState.flights.length} ACFT`;
+        text.textContent = `${appState.stationIata} LIVE • ${appState.flights.length} ACFT`;
         sub.textContent = `Tracking ${appState.flights.length} live aircraft within ${appState.radiusKm} km of ${appState.locationName}`;
       } else if (state === 'empty') {
         dot.classList.add('bg-sky-500');
-        text.textContent = `${appState.stationIcao} LIVE • 0 ACFT`;
-        sub.textContent = `Connected to live ADS-B • Clear skies within ${appState.radiusKm} km`;
+        text.textContent = `${appState.stationIata} LIVE • 0 ACFT`;
+        sub.textContent = `Clear skies within ${appState.radiusKm} km of ${appState.locationName}`;
       } else if (state === 'reconnecting') {
         dot.classList.add('bg-amber-500');
         text.textContent = 'RECONNECTING…';
-        sub.textContent = 'Holding live transponder tracks…';
+        sub.textContent = 'Refreshing live radar — may take a while…';
       } else {
         dot.classList.add('bg-amber-500');
-        text.textContent = `SYNCING ${appState.stationIcao}…`;
-        sub.textContent = `Scanning live ADS-B radar around ${appState.locationName}…`;
+        text.textContent = `LOADING ${appState.stationIata}…`;
+        sub.textContent = `Loading live flights around ${appState.locationName} — may take a while…`;
       }
     }
 
@@ -1460,6 +1759,7 @@
       const modal = document.getElementById('settingsModal');
       if (!modal) return;
       if (open) {
+        renderAirportSelectors();
         document.getElementById('inputLat').value = appState.lat;
         document.getElementById('inputLon').value = appState.lon;
         document.getElementById('inputRadius').value = appState.radiusKm;
@@ -1473,12 +1773,13 @@
       }
     }
 
-    function setStationPreset(lat, lon, name, icao) {
+    function setStationPreset(lat, lon, name, icao, iata) {
       document.getElementById('inputLat').value = lat;
       document.getElementById('inputLon').value = lon;
       appState.locationName = name;
       appState.stationIcao = icao;
-      showToast(`Selected ${name} (${icao})`);
+      appState.stationIata = iata;
+      showToast(`Selected ${name} (${iata})`);
     }
 
     function useBrowserGeolocation() {
@@ -1493,6 +1794,7 @@
           document.getElementById('inputLon').value = pos.coords.longitude.toFixed(4);
           appState.locationName = 'My GPS';
           appState.stationIcao = 'GPS';
+          appState.stationIata = 'GPS';
           showToast('GPS coordinates updated');
         },
         () => showToast('GPS permission denied — keeping current station'),
@@ -1503,19 +1805,26 @@
     function saveSettings() {
       const lat = parseFloat(document.getElementById('inputLat').value);
       const lon = parseFloat(document.getElementById('inputLon').value);
-      const radius = parseInt(document.getElementById('inputRadius').value, 10);
+      const radius = clampRadius(document.getElementById('inputRadius').value);
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
         appState.lat = lat;
         appState.lon = lon;
       }
-      if (Number.isFinite(radius)) appState.radiusKm = radius;
+      appState.radiusKm = radius;
       appState.chime = document.getElementById('inputChime').checked;
       persistSettings();
       updateStationHeader();
+      renderAirportSelectors();
       toggleSettings(false);
-      if (appState.rawScanAircraft.length > 0 && haversineKm(appState.lat, appState.lon, UK_SCAN.lat, UK_SCAN.lon) <= 250) {
+
+      if (canReuseExistingScan(appState.lat, appState.lon)) {
         rebuildFlightsForStation();
       } else {
+        appState.rawScanAircraft = [];
+        appState.flights = [];
+        appState.feedStatus = 'connecting';
+        updateFeedStatusUI('connecting');
+        renderActiveView();
         fetchLiveAirspace(true);
       }
     }
@@ -1531,7 +1840,7 @@
     }
 
     // =========================================================================
-    // 7. BOOTSTRAP
+    // 8. BOOTSTRAP
     // =========================================================================
     window.addEventListener('DOMContentLoaded', () => {
       loadPersistedState();
@@ -1542,3 +1851,4 @@
     });
   </script>
 </body>
+</html>
