@@ -137,7 +137,7 @@
           <div class="flex items-center space-x-2">
             <span class="font-extrabold tracking-tight text-sm sm:text-base">AVIOFRAME</span>
             <span id="feed-source-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate">
-              SCANNING LIVE SKY...
+              SCANNING UK SKY...
             </span>
           </div>
           <button onclick="cycleLocation()" class="text-[11px] text-slate-400 hover:text-sky-400 flex items-center space-x-1 mt-0.5 truncate transition">
@@ -176,7 +176,7 @@
     <!-- VIEW 1: POSTER / FLIGHTWALL HERO CARD -->
     <section id="view-poster" class="space-y-4">
       <div id="hero-poster-card" class="avio-card p-5 space-y-5">
-        
+
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center space-x-2 min-w-0">
             <span id="poster-icao-pill" class="px-2.5 py-0.5 rounded-full bg-white text-slate-950 font-mono font-extrabold text-[11px] tracking-wider shrink-0">
@@ -383,7 +383,7 @@
         </div>
         <div id="overhead-board-list" class="space-y-2.5"></div>
         <div class="pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500">
-          <div id="board-source-label">SOURCE: CLOUDFLARE ADS-B RELAY</div>
+          <div id="board-source-label">SOURCE: UK LIVE ADS-B FEED</div>
           <div>LAST SCAN: <span id="board-scan-time">--:--:--</span></div>
         </div>
       </div>
@@ -417,6 +417,8 @@
 
   <script>
     const WORKER_URL = 'https://thebest.stanplayz0612.workers.dev/';
+    // Single wide scan covering Southend, Heathrow, Stansted, and Manchester at once
+    const UK_SCAN = { lat: 52.35, lon: -0.80, dist: 220 };
 
     const LOCATIONS = [
       { label: 'Southend-on-Sea, UK (EGMC) • 80 nm', icao: 'EGMC', lat: 51.5714, lon: 0.6956 },
@@ -426,6 +428,7 @@
     ];
     let currentLocationIdx = 0;
 
+    let rawUkAircraft = [];
     let aircraftList = [];
     let selectedId = null;
     let liveSim = true;
@@ -433,8 +436,8 @@
     let soundOn = false;
     let isFlightwall = false;
     let currentView = 'poster';
-    let fetchRetryTimer = null;
-    let activeFetchToken = 0;
+    let isFetching = false;
+    let bootRetryTimer = null;
 
     function toggleFlightwall() {
       if (currentView !== 'poster') switchView('poster');
@@ -477,95 +480,109 @@
       return map[prefix] || { airline: `Operator (${prefix || 'ADS-B'})`, tail: '#0ea5e9', stripe: '#38bdf8' };
     }
 
-    async function fetchLiveADSB(manual = false, retryCount = 0, token = null) {
-      if (retryCount === 0) {
-        if (fetchRetryTimer) clearTimeout(fetchRetryTimer);
-        activeFetchToken++;
-        token = activeFetchToken;
-      } else if (token !== activeFetchToken) {
+    function rebuildForCurrentAirport() {
+      const loc = LOCATIONS[currentLocationIdx];
+      const badge = document.getElementById('feed-source-badge');
+
+      if (rawUkAircraft.length === 0) {
+        aircraftList = [];
+        updateAllViews();
         return;
       }
 
+      const mapped = rawUkAircraft.map((a, idx) => {
+        const callsign = (a.flight || a.r || a.hex || 'UNKN').trim();
+        const brand = airlineBranding(callsign);
+        const dLat = (a.lat - loc.lat) * 111.32;
+        const dLon = (a.lon - loc.lon) * 111.32 * Math.cos(loc.lat * Math.PI / 180);
+        const distKm = Math.max(0.8, Math.sqrt(dLat * dLat + dLon * dLon));
+        const brg = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
+
+        return {
+          id: a.hex || `live_${idx}`,
+          icao: callsign.slice(0, 3) || 'ADS',
+          callsign,
+          airline: brand.airline,
+          type: a.desc || (a.t ? `ICAO ${a.t}` : 'Live Aircraft'),
+          reg: a.r || (a.hex ? a.hex.toUpperCase() : 'N/A'),
+          origin: loc.icao,
+          dest: 'LIVE',
+          altFt: typeof a.alt_baro === 'number' ? a.alt_baro : 15000,
+          vrate: a.baro_rate || a.geom_rate || 0,
+          spdKts: Math.round(a.gs || 320),
+          distKm: +distKm.toFixed(1),
+          bearingDeg: Math.round(brg),
+          bearingCard: getCardinal(brg),
+          track: Math.round(a.track || 90),
+          squawk: a.squawk || '----',
+          tailColor: brand.tail,
+          stripeColor: brand.stripe,
+          xKm: dLon,
+          yKm: dLat
+        };
+      }).sort((a, b) => a.distKm - b.distKm);
+
+      const nearby = mapped.filter(a => a.distKm <= 148);
+      aircraftList = (nearby.length > 0 ? nearby : mapped).slice(0, 16);
+
+      if (!aircraftList.some(a => a.id === selectedId)) {
+        selectedId = aircraftList[0].id;
+      }
+
+      badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate';
+      badge.innerHTML = `${loc.icao} LIVE • ${aircraftList.length} ACFT`;
+      document.getElementById('board-source-label').textContent = `SOURCE: ${loc.icao} LIVE ADS-B + 1S KINEMATICS`;
+      updateAllViews();
+    }
+
+    async function fetchLiveADSB(manual = false) {
+      if (isFetching) return;
+      isFetching = true;
+      if (bootRetryTimer) clearTimeout(bootRetryTimer);
+
       const loc = LOCATIONS[currentLocationIdx];
       const badge = document.getElementById('feed-source-badge');
-      badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
-      badge.innerHTML = `SYNCING ${loc.icao}...`;
+
+      if (rawUkAircraft.length === 0 || manual) {
+        badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
+        badge.innerHTML = `SYNCING ${loc.icao}...`;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       try {
-        const url = `${WORKER_URL}?lat=${loc.lat}&lon=${loc.lon}&dist=80&_t=${Date.now()}`;
-        const res = await fetch(url, { cache: 'no-store' });
-        if (token !== activeFetchToken) return;
+        const url = `${WORKER_URL}?lat=${UK_SCAN.lat}&lon=${UK_SCAN.lon}&dist=${UK_SCAN.dist}&_t=${Date.now()}`;
+        const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
-        if (token !== activeFetchToken) return;
-        const rawList = data.ac || data.aircraft || [];
+        const rawList = (data.ac || data.aircraft || []).filter(
+          a => typeof a.lat === 'number' && typeof a.lon === 'number' && a.alt_baro !== 'ground'
+        );
 
-        const liveParsed = rawList
-          .filter(a => typeof a.lat === 'number' && typeof a.lon === 'number' && a.alt_baro !== 'ground')
-          .map((a, idx) => {
-            const callsign = (a.flight || a.r || a.hex || 'UNKN').trim();
-            const brand = airlineBranding(callsign);
-            const dLat = (a.lat - loc.lat) * 111.32;
-            const dLon = (a.lon - loc.lon) * 111.32 * Math.cos(loc.lat * Math.PI / 180);
-            const distKm = Math.max(0.8, Math.sqrt(dLat * dLat + dLon * dLon));
-            const brg = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
-
-            return {
-              id: a.hex || `live_${idx}`,
-              icao: callsign.slice(0, 3) || 'ADS',
-              callsign,
-              airline: brand.airline,
-              type: a.desc || (a.t ? `ICAO ${a.t}` : 'Live Aircraft'),
-              reg: a.r || (a.hex ? a.hex.toUpperCase() : 'N/A'),
-              origin: loc.icao,
-              dest: 'LIVE',
-              altFt: typeof a.alt_baro === 'number' ? a.alt_baro : 15000,
-              vrate: a.baro_rate || a.geom_rate || 0,
-              spdKts: Math.round(a.gs || 320),
-              distKm: +distKm.toFixed(1),
-              bearingDeg: Math.round(brg),
-              bearingCard: getCardinal(brg),
-              track: Math.round(a.track || 90),
-              squawk: a.squawk || '----',
-              tailColor: brand.tail,
-              stripeColor: brand.stripe,
-              xKm: dLon,
-              yKm: dLat
-            };
-          })
-          .sort((a, b) => a.distKm - b.distKm)
-          .slice(0, 16);
-
-        if (liveParsed.length > 0) {
-          aircraftList = liveParsed;
-          if (!aircraftList.some(a => a.id === selectedId)) {
-            selectedId = aircraftList[0].id;
-          }
-          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate';
-          badge.innerHTML = `${loc.icao} LIVE • ${aircraftList.length} ACFT`;
-          document.getElementById('board-source-label').textContent = `SOURCE: ${loc.icao} LIVE ADS-B + 1S KINEMATICS`;
-          updateAllViews();
-          return;
+        if (rawList.length > 0) {
+          rawUkAircraft = rawList;
+          rebuildForCurrentAirport();
+        } else if (rawUkAircraft.length === 0) {
+          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
+          badge.innerHTML = `WAITING FOR RADAR...`;
+          bootRetryTimer = setTimeout(() => fetchLiveADSB(false), 5000);
+        } else {
+          rebuildForCurrentAirport();
         }
-
-        if (retryCount < 2) {
-          fetchRetryTimer = setTimeout(() => fetchLiveADSB(manual, retryCount + 1, token), 1500);
-          return;
-        }
-
-        badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
-        badge.innerHTML = `0 AIRBORNE AT ${loc.icao}`;
-        updateAllViews();
       } catch (err) {
-        if (token !== activeFetchToken) return;
-        if (retryCount < 2) {
-          fetchRetryTimer = setTimeout(() => fetchLiveADSB(manual, retryCount + 1, token), 1500);
-          return;
+        clearTimeout(timeoutId);
+        if (rawUkAircraft.length === 0) {
+          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
+          badge.innerHTML = `CONNECTING...`;
+          bootRetryTimer = setTimeout(() => fetchLiveADSB(false), 5000);
+        } else {
+          rebuildForCurrentAirport();
         }
-        badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 truncate';
-        badge.innerHTML = `RETRYING (${err.message})`;
-        updateAllViews();
+      } finally {
+        isFetching = false;
       }
     }
 
@@ -771,13 +788,18 @@
     function cycleLocation() {
       currentLocationIdx = (currentLocationIdx + 1) % LOCATIONS.length;
       const loc = LOCATIONS[currentLocationIdx];
-      aircraftList = [];
       selectedId = null;
       document.getElementById('header-location-label').textContent = loc.label;
       document.getElementById('radar-center-icao').textContent = loc.icao;
       document.getElementById('radar-legend-apt').textContent = `AIRFIELD (${loc.icao})`;
-      updateAllViews();
-      fetchLiveADSB(true);
+
+      if (rawUkAircraft.length > 0) {
+        // Instant local switch — no extra API call or cooldown
+        rebuildForCurrentAirport();
+      } else {
+        updateAllViews();
+        fetchLiveADSB(true);
+      }
     }
 
     function toggleLiveSim() {
@@ -797,7 +819,7 @@
     }
 
     setInterval(tickOneSecondKinematics, 1000);
-    setInterval(() => { if (liveSim) fetchLiveADSB(false); }, 15000);
+    setInterval(() => { if (liveSim) fetchLiveADSB(false); }, 20000);
 
     window.addEventListener('DOMContentLoaded', () => {
       updateAllViews();
