@@ -578,20 +578,19 @@
       return map[prefix] || { airline: `Operator (${prefix || 'ADS-B'})`, tail: '#0ea5e9', stripe: '#38bdf8' };
     }
 
-   
+    async function fetchLiveADSB(manual = false) {
       const loc = LOCATIONS[currentLocationIdx];
       const badge = document.getElementById('feed-source-badge');
       if (manual) {
         badge.innerHTML = `SYNCING LIVE ADS-B...`;
       }
 
-      const endpoints = [
-        `https://api.airplanes.live/v2/point/${loc.lat}/${loc.lon}/45`,
-        `https://api.adsb.lol/v2/point/${loc.lat}/${loc.lon}/45`,
-        `https://corsproxy.io/?${encodeURIComponent(`https://api.airplanes.live/v2/point/${loc.lat}/${loc.lon}/45`)}`
+      const proxyFeeds = [
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.adsb.lol/v2/point/${loc.lat}/${loc.lon}/45`)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.airplanes.live/v2/point/${loc.lat}/${loc.lon}/45`)}`
       ];
 
-      for (const url of endpoints) {
+      for (const url of proxyFeeds) {
         try {
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 5000);
@@ -648,10 +647,67 @@
               return;
             }
           }
-        } catch (e) {
-          // Try next live ADS-B endpoint
-        }
+        } catch (e) {}
       }
+
+      try {
+        const degOffset = 0.45;
+        const osUrl = `https://opensky-network.org/api/states/all?lamin=${(loc.lat - degOffset).toFixed(3)}&lomin=${(loc.lon - degOffset).toFixed(3)}&lamax=${(loc.lat + degOffset).toFixed(3)}&lomax=${(loc.lon + degOffset).toFixed(3)}`;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(osUrl, { cache: 'no-store', signal: controller.signal });
+        clearTimeout(timer);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.states) && data.states.length > 0) {
+            const osParsed = data.states
+              .filter(s => typeof s[6] === 'number' && typeof s[5] === 'number' && !s[8])
+              .slice(0, 16)
+              .map((s, idx) => {
+                const callsign = (s[1] || s[0] || 'UNKN').trim();
+                const brand = airlineBranding(callsign);
+                const dLat = (s[6] - loc.lat) * 111.32;
+                const dLon = (s[5] - loc.lon) * 111.32 * Math.cos(loc.lat * Math.PI / 180);
+                const distKm = Math.max(0.8, Math.sqrt(dLat * dLat + dLon * dLon));
+                const brg = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
+
+                return {
+                  id: s[0] || `os_${idx}`,
+                  icao: callsign.slice(0, 3) || 'ADS',
+                  callsign,
+                  airline: brand.airline,
+                  type: 'Live ADS-B Target',
+                  reg: s[0] ? s[0].toUpperCase() : 'N/A',
+                  origin: loc.icao,
+                  dest: 'LIVE',
+                  altFt: typeof s[7] === 'number' ? Math.round(s[7] * 3.28084) : 15000,
+                  vrate: typeof s[11] === 'number' ? Math.round(s[11] * 196.85) : 0,
+                  spdKts: typeof s[9] === 'number' ? Math.round(s[9] * 1.94384) : 320,
+                  distKm: +distKm.toFixed(1),
+                  bearingDeg: Math.round(brg),
+                  bearingCard: getCardinal(brg),
+                  track: typeof s[10] === 'number' ? Math.round(s[10]) : 90,
+                  squawk: '----',
+                  tailColor: brand.tail,
+                  stripeColor: brand.stripe,
+                  xKm: dLon,
+                  yKm: dLat
+                };
+              });
+
+            if (osParsed.length > 0) {
+              const customOnes = aircraftList.filter(a => String(a.id).startsWith('custom_'));
+              aircraftList = [...customOnes, ...osParsed];
+              if (!aircraftList.some(a => a.id === selectedId)) selectedId = aircraftList[0].id;
+              badge.innerHTML = `LIVE • OPENSKY REAL • <span id="header-acft-count" class="ml-1">${aircraftList.length} ACFT</span>`;
+              document.getElementById('board-source-label').textContent = 'SOURCE: OPENSKY LIVE ADS-B + 1S KINEMATIC TRACKER';
+              updateAllViews();
+              return;
+            }
+          }
+        }
+      } catch (e) {}
 
       badge.innerHTML = `SIM • ADS-B • <span id="header-acft-count" class="ml-1">${aircraftList.length} ACFT</span>`;
       if (manual) updateAllViews();
