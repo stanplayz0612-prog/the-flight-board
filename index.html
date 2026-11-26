@@ -137,12 +137,12 @@
         <div class="min-w-0">
           <div class="flex items-center space-x-2">
             <span class="font-extrabold tracking-tight text-sm sm:text-base">AVIOFRAME</span>
-            <span id="feed-source-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate">
-              LIVE • ADS-B • <span id="header-acft-count" class="ml-1">8 ACFT</span>
+            <span id="feed-source-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate">
+              SCANNING LIVE SKY...
             </span>
           </div>
           <button onclick="cycleLocation()" class="text-[11px] text-slate-400 hover:text-sky-400 flex items-center space-x-1 mt-0.5 truncate transition">
-            <span id="header-location-label">Southend-on-Sea, UK (EGMC) • 45 km</span>
+            <span id="header-location-label">Southend-on-Sea, UK (EGMC) • 60 nm</span>
             <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
           </button>
         </div>
@@ -184,10 +184,10 @@
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center space-x-2 min-w-0">
             <span id="poster-icao-pill" class="px-2.5 py-0.5 rounded-full bg-white text-slate-950 font-mono font-extrabold text-[11px] tracking-wider shrink-0">
-              EZY
+              ---
             </span>
             <span id="poster-vspeed-pill" class="px-3 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 font-mono font-semibold text-[11px] truncate">
-              CLIMBING • +1450 ft/min
+              WAITING FOR LIVE ADS-B
             </span>
           </div>
 
@@ -202,21 +202,21 @@
         </div>
 
         <div>
-          <h1 id="poster-callsign" class="text-3xl sm:text-4xl font-extrabold tracking-tight">EZY73EB</h1>
+          <h1 id="poster-callsign" class="text-3xl sm:text-4xl font-extrabold tracking-tight">SCANNING...</h1>
           <p id="poster-subtitle" class="text-xs sm:text-sm text-slate-400 mt-1">
-            Airbus A319-100 • Reg <span class="text-slate-200 font-semibold">G-EZAX</span>
+            Fetching real overhead aircraft • <span class="text-slate-200 font-semibold">---</span>
           </p>
         </div>
 
         <div class="avio-subcard px-4 py-3.5 flex items-center justify-between">
           <div>
-            <div id="poster-origin" class="text-xl sm:text-2xl font-extrabold tracking-tight">SEN</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Origin</div>
+            <div id="poster-origin" class="text-xl sm:text-2xl font-extrabold tracking-tight">EGMC</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Receiver</div>
           </div>
 
           <div class="flex-1 px-4 text-center">
             <div id="poster-route-dist" class="text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1.5">
-              23.7 KM AWAY
+              --.- KM AWAY
             </div>
             <div class="relative flex items-center justify-center">
               <div class="w-full h-[1px] bg-slate-700"></div>
@@ -225,8 +225,8 @@
           </div>
 
           <div class="text-right">
-            <div id="poster-dest" class="text-xl sm:text-2xl font-extrabold tracking-tight">AMS</div>
-            <div class="text-[11px] text-slate-400 mt-0.5">Destination</div>
+            <div id="poster-dest" class="text-xl sm:text-2xl font-extrabold tracking-tight">LIVE</div>
+            <div class="text-[11px] text-slate-400 mt-0.5">ADS-B</div>
           </div>
         </div>
 
@@ -239,15 +239,15 @@
         <div id="flightwall-footer-bar" class="hidden pt-4 border-t border-slate-800/80 items-center justify-between font-mono text-xs sm:text-sm">
           <div>
             <span class="text-slate-500 text-[10px] block">ALTITUDE</span>
-            <span id="fw-alt" class="font-extrabold text-white">9,800 ft</span>
+            <span id="fw-alt" class="font-extrabold text-white">-- ft</span>
           </div>
           <div class="text-center">
             <span class="text-slate-500 text-[10px] block">SPEED</span>
-            <span id="fw-spd" class="font-extrabold text-white">265 kts</span>
+            <span id="fw-spd" class="font-extrabold text-white">-- kts</span>
           </div>
           <div class="text-center">
             <span class="text-slate-500 text-[10px] block">HEADING</span>
-            <span id="fw-hdg" class="font-extrabold text-sky-400">084° E</span>
+            <span id="fw-hdg" class="font-extrabold text-sky-400">---°</span>
           </div>
           <div class="text-right">
             <span class="text-slate-500 text-[10px] block">OVERHEAD</span>
@@ -266,11 +266,11 @@
           <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">ALTITUDE</div>
           <div class="flex items-baseline justify-between mt-2">
             <div>
-              <span id="tele-alt-m" class="text-2xl font-extrabold font-mono">2,987</span>
+              <span id="tele-alt-m" class="text-2xl font-extrabold font-mono">--</span>
               <div class="text-xs text-slate-400 font-mono">m</div>
             </div>
             <div class="text-right text-xs font-mono text-slate-400">
-              <div id="tele-alt-ft">9,800</div>
+              <div id="tele-alt-ft">--</div>
               <div>ft</div>
             </div>
           </div>
@@ -280,11 +280,11 @@
           <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">GROUND SPEED</div>
           <div class="flex items-baseline justify-between mt-2">
             <div>
-              <span id="tele-spd-kmh" class="text-2xl font-extrabold font-mono">491</span>
+              <span id="tele-spd-kmh" class="text-2xl font-extrabold font-mono">--</span>
               <div class="text-xs text-slate-400 font-mono">km/h</div>
             </div>
             <div class="text-right text-xs font-mono text-slate-400">
-              <div id="tele-spd-kts">265</div>
+              <div id="tele-spd-kts">--</div>
               <div>kts</div>
             </div>
           </div>
@@ -294,12 +294,12 @@
           <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">DISTANCE & BEARING</div>
           <div class="flex items-baseline justify-between mt-2">
             <div>
-              <span id="tele-dist-km" class="text-2xl font-extrabold font-mono text-sky-400">23.7</span>
+              <span id="tele-dist-km" class="text-2xl font-extrabold font-mono text-sky-400">--</span>
               <div class="text-xs text-sky-400 font-mono">km</div>
             </div>
             <div class="text-right text-[11px] font-mono text-slate-400">
-              <div id="tele-dist-nm">12.8 nm •</div>
-              <div id="tele-bearing">88° E</div>
+              <div id="tele-dist-nm">-- nm •</div>
+              <div id="tele-bearing">--°</div>
             </div>
           </div>
         </div>
@@ -308,10 +308,10 @@
           <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400">TRACK / SQUAWK</div>
           <div class="flex items-baseline justify-between mt-2">
             <div>
-              <span id="tele-track" class="text-2xl font-extrabold font-mono">84°</span>
+              <span id="tele-track" class="text-2xl font-extrabold font-mono">--°</span>
             </div>
             <div class="text-right text-xs font-mono text-slate-400">
-              <div>SQK <span id="tele-squawk" class="text-slate-300">7341</span></div>
+              <div>SQK <span id="tele-squawk" class="text-slate-300">----</span></div>
             </div>
           </div>
         </div>
@@ -331,9 +331,9 @@
             <g class="radar-sweep-line">
               <line x1="180" y1="180" x2="345" y2="180" stroke="#10b981" stroke-width="1.5" opacity="0.75"/>
             </g>
-            <text x="180" y="28" text-anchor="middle" fill="#10b981" font-family="JetBrains Mono" font-size="9">N 45km</text>
-            <text x="180" y="75" text-anchor="middle" fill="#059669" font-family="JetBrains Mono" font-size="8">30km</text>
-            <text x="180" y="130" text-anchor="middle" fill="#059669" font-family="JetBrains Mono" font-size="8">15km</text>
+            <text x="180" y="28" text-anchor="middle" fill="#10b981" font-family="JetBrains Mono" font-size="9">N 110km</text>
+            <text x="180" y="75" text-anchor="middle" fill="#059669" font-family="JetBrains Mono" font-size="8">75km</text>
+            <text x="180" y="130" text-anchor="middle" fill="#059669" font-family="JetBrains Mono" font-size="8">35km</text>
             <text x="180" y="338" text-anchor="middle" fill="#10b981" font-family="JetBrains Mono" font-size="9">S</text>
             <text x="24" y="183" text-anchor="start" fill="#10b981" font-family="JetBrains Mono" font-size="9">W</text>
             <text x="336" y="183" text-anchor="end" fill="#10b981" font-family="JetBrains Mono" font-size="9">E</text>
@@ -358,22 +358,22 @@
       <div class="avio-card p-5 space-y-4">
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">ATC TARGET TELEMETRY</span>
-          <span id="radar-tracks-badge" class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-bold">8 TRACKS</span>
+          <span id="radar-tracks-badge" class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono text-[10px] font-bold">0 TRACKS</span>
         </div>
         <div class="flex items-start justify-between">
           <div>
-            <h2 id="radar-detail-callsign" class="text-2xl font-extrabold font-mono">EZY73EB</h2>
-            <p id="radar-detail-airline" class="text-xs font-mono font-bold text-emerald-400 uppercase mt-0.5">EASYJET</p>
+            <h2 id="radar-detail-callsign" class="text-2xl font-extrabold font-mono">---</h2>
+            <p id="radar-detail-airline" class="text-xs font-mono font-bold text-emerald-400 uppercase mt-0.5">WAITING FOR LIVE DATA</p>
           </div>
           <div class="text-right font-mono">
-            <div id="radar-detail-dist" class="text-xl font-extrabold text-amber-400">23.7 km</div>
-            <div id="radar-detail-brg" class="text-[11px] text-slate-400">BRG 088° (E)</div>
+            <div id="radar-detail-dist" class="text-xl font-extrabold text-amber-400">-- km</div>
+            <div id="radar-detail-brg" class="text-[11px] text-slate-400">BRG ---°</div>
           </div>
         </div>
         <div class="avio-subcard p-3.5">
           <div class="text-[10px] font-mono uppercase text-slate-400 mb-1">AIRCRAFT / ROUTE</div>
-          <div id="radar-detail-type" class="text-sm font-bold">Airbus A319-100 (G-EZAX)</div>
-          <div id="radar-detail-route" class="text-xs font-mono text-sky-400 mt-0.5">SEN (Origin) &rarr; AMS (Destination)</div>
+          <div id="radar-detail-type" class="text-sm font-bold">---</div>
+          <div id="radar-detail-route" class="text-xs font-mono text-sky-400 mt-0.5">---</div>
         </div>
       </div>
     </section>
@@ -390,8 +390,8 @@
         </div>
         <div id="overhead-board-list" class="space-y-2.5"></div>
         <div class="pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500">
-          <div id="board-source-label">SOURCE: LIVE ADS-B + 1S KINEMATIC TRACKER</div>
-          <div>LAST SCAN: <span id="board-scan-time">20:57:31</span></div>
+          <div id="board-source-label">SOURCE: LIVE ADS-B ONLY</div>
+          <div>LAST SCAN: <span id="board-scan-time">--:--:--</span></div>
         </div>
       </div>
     </section>
@@ -456,7 +456,7 @@
             </div>
             <div>
               <label class="block font-mono text-[10px] uppercase text-slate-400 mb-1">Distance (km)</label>
-              <input type="number" id="cust-dist-km" value="14.2" step="0.1" min="0.5" max="45" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-2.5 py-2 font-mono">
+              <input type="number" id="cust-dist-km" value="14.2" step="0.1" min="0.5" max="110" class="w-full bg-[#161d2c] border border-[#232d42] rounded-xl px-2.5 py-2 font-mono">
             </div>
           </div>
           <button type="submit" class="w-full py-2.5 rounded-xl bg-white text-slate-950 font-bold text-xs uppercase tracking-wider hover:bg-slate-200 transition shadow">
@@ -510,26 +510,15 @@
 
   <script>
     const LOCATIONS = [
-      { label: 'Southend-on-Sea, UK (EGMC) • 45 km', icao: 'EGMC', lat: 51.5714, lon: 0.6956 },
-      { label: 'London Heathrow, UK (EGLL) • 45 km', icao: 'EGLL', lat: 51.4700, lon: -0.4543 },
-      { label: 'London Stansted, UK (EGSS) • 45 km', icao: 'EGSS', lat: 51.8850, lon: 0.2350 },
-      { label: 'Manchester, UK (EGCC) • 45 km', icao: 'EGCC', lat: 53.3537, lon: -2.2750 }
+      { label: 'Southend-on-Sea, UK (EGMC) • 60 nm', icao: 'EGMC', lat: 51.5714, lon: 0.6956 },
+      { label: 'London Heathrow, UK (EGLL) • 60 nm', icao: 'EGLL', lat: 51.4700, lon: -0.4543 },
+      { label: 'London Stansted, UK (EGSS) • 60 nm', icao: 'EGSS', lat: 51.8850, lon: 0.2350 },
+      { label: 'Manchester, UK (EGCC) • 60 nm', icao: 'EGCC', lat: 53.3537, lon: -2.2750 }
     ];
     let currentLocationIdx = 0;
 
-    const FALLBACK_FLEET = [
-      { id: 'ac5', icao: 'EZY', callsign: 'EZY73EB', airline: 'easyJet', type: 'Airbus A319-100', reg: 'G-EZAX', origin: 'SEN', dest: 'AMS', altFt: 9800, vrate: 1450, spdKts: 265, distKm: 23.7, bearingDeg: 88, bearingCard: 'E', track: 84, squawk: '7341', tailColor: '#ea580c', stripeColor: '#fb923c', xKm: 23.6, yKm: 0.8 },
-      { id: 'ac1', icao: 'LGL', callsign: 'LGL4L', airline: 'Luxair', type: 'De Havilland Dash 8-400', reg: 'LX-LQA', origin: 'LCY', dest: 'LUX', altFt: 12950, vrate: 192, spdKts: 282, distKm: 17.0, bearingDeg: 195, bearingCard: 'SSW', track: 129, squawk: '4412', tailColor: '#0ea5e9', stripeColor: '#38bdf8', xKm: -4.4, yKm: -16.4 },
-      { id: 'ac2', icao: 'TAM', callsign: 'TAM8079', airline: 'LATAM Airlines', type: 'Boeing 777-300ER', reg: 'PT-MUA', origin: 'LHR', dest: 'GRU', altFt: 31000, vrate: 0, spdKts: 472, distKm: 17.2, bearingDeg: 220, bearingCard: 'SW', track: 215, squawk: '6201', tailColor: '#dc2626', stripeColor: '#1e3a8a', xKm: -11.0, yKm: -13.2 },
-      { id: 'ac3', icao: 'SAS', callsign: 'SAS70Y', airline: 'Scandinavian Airlines', type: 'Airbus A320neo', reg: 'SE-ROA', origin: 'ARN', dest: 'LHR', altFt: 18400, vrate: -850, spdKts: 340, distKm: 20.5, bearingDeg: 45, bearingCard: 'NE', track: 242, squawk: '1420', tailColor: '#1d4ed8', stripeColor: '#60a5fa', xKm: 14.5, yKm: 14.5 },
-      { id: 'ac4', icao: 'RYR', callsign: 'RYR5TJ', airline: 'Ryanair', type: 'Boeing 737-800', reg: 'EI-DCL', origin: 'STN', dest: 'ALC', altFt: 24100, vrate: 1120, spdKts: 398, distKm: 23.4, bearingDeg: 285, bearingCard: 'WNW', track: 168, squawk: '5211', tailColor: '#1e40af', stripeColor: '#facc15', xKm: -22.6, yKm: 6.1 },
-      { id: 'ac6', icao: 'BAW', callsign: 'BAW447X', airline: 'British Airways', type: 'Airbus A320neo', reg: 'G-TTNI', origin: 'AMS', dest: 'LHR', altFt: 13120, vrate: -640, spdKts: 339, distKm: 15.8, bearingDeg: 4, bearingCard: 'N', track: 268, squawk: '3104', tailColor: '#1e3a8a', stripeColor: '#dc2626', xKm: 1.1, yKm: 15.7 },
-      { id: 'ac7', icao: 'BEL', callsign: 'BEL5BJ', airline: 'Brussels Airlines', type: 'Airbus A319-100', reg: 'OO-SSV', origin: 'BRU', dest: 'MAN', altFt: 33975, vrate: 0, spdKts: 384, distKm: 15.8, bearingDeg: 95, bearingCard: 'E', track: 293, squawk: '2215', tailColor: '#1d4ed8', stripeColor: '#ef4444', xKm: 15.7, yKm: -1.4 },
-      { id: 'ac8', icao: 'KLM', callsign: 'KLM49W', airline: 'KLM Royal Dutch', type: 'Embraer E195-E2', reg: 'PH-NXL', origin: 'AMS', dest: 'BHX', altFt: 32000, vrate: 0, spdKts: 425, distKm: 16.4, bearingDeg: 112, bearingCard: 'ESE', track: 267, squawk: '2140', tailColor: '#0284c7', stripeColor: '#38bdf8', xKm: 15.2, yKm: -6.1 }
-    ];
-
-    let aircraftList = JSON.parse(JSON.stringify(FALLBACK_FLEET));
-    let selectedId = 'ac5';
+    let aircraftList = [];
+    let selectedId = null;
     let liveSim = true;
     let isLight = false;
     let soundOn = false;
@@ -581,24 +570,37 @@
     async function fetchLiveADSB(manual = false) {
       const loc = LOCATIONS[currentLocationIdx];
       const badge = document.getElementById('feed-source-badge');
-      if (manual) {
-        badge.innerHTML = `SYNCING LIVE ADS-B...`;
-      }
+      badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 truncate';
+      badge.innerHTML = `SCANNING LIVE ADS-B...`;
 
-      const proxyFeeds = [
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.adsb.lol/v2/point/${loc.lat}/${loc.lon}/45`)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://api.airplanes.live/v2/point/${loc.lat}/${loc.lon}/45`)}`
+      const rawTargets = [
+        `https://api.adsb.lol/v2/point/${loc.lat}/${loc.lon}/60`,
+        `https://api.airplanes.live/v2/point/${loc.lat}/${loc.lon}/60`,
+        `https://opendata.adsb.fi/api/v2/lat/${loc.lat}/lon/${loc.lon}/dist/60`
       ];
 
-      for (const url of proxyFeeds) {
+      const requestUrls = [
+        ...rawTargets,
+        ...rawTargets.map(u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`),
+        ...rawTargets.map(u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`)
+      ];
+
+      let lastError = 'No response';
+
+      for (const url of requestUrls) {
         try {
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), 5000);
           const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
           clearTimeout(timer);
-          if (!res.ok) continue;
 
-          const data = await res.json();
+          if (!res.ok) {
+            lastError = `HTTP ${res.status}`;
+            continue;
+          }
+
+          const text = await res.text();
+          const data = JSON.parse(text);
           const rawList = data.ac || data.aircraft || [];
 
           if (Array.isArray(rawList) && rawList.length > 0) {
@@ -618,7 +620,7 @@
                   icao: callsign.slice(0, 3) || 'ADS',
                   callsign,
                   airline: brand.airline,
-                  type: a.desc || (a.t ? `ICAO Type ${a.t}` : 'Commercial Airliner'),
+                  type: a.desc || (a.t ? `ICAO ${a.t}` : 'Live Aircraft'),
                   reg: a.r || (a.hex ? a.hex.toUpperCase() : 'N/A'),
                   origin: loc.icao,
                   dest: 'LIVE',
@@ -641,87 +643,32 @@
               const customOnes = aircraftList.filter(a => String(a.id).startsWith('custom_'));
               aircraftList = [...customOnes, ...liveParsed];
               if (!aircraftList.some(a => a.id === selectedId)) selectedId = aircraftList[0].id;
-              badge.innerHTML = `LIVE • ADS-B REAL • <span id="header-acft-count" class="ml-1">${aircraftList.length} ACFT</span>`;
-              document.getElementById('board-source-label').textContent = 'SOURCE: REAL LIVE ADS-B + 1S KINEMATIC TRACKER';
+              badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 truncate';
+              badge.innerHTML = `LIVE • REAL ADS-B • <span id="header-acft-count" class="ml-1">${aircraftList.length} ACFT</span>`;
+              document.getElementById('board-source-label').textContent = 'SOURCE: LIVE ADS-B FEED + 1S KINEMATICS';
               updateAllViews();
               return;
             }
           }
-        } catch (e) {}
+        } catch (err) {
+          lastError = err.name === 'AbortError' ? 'Timeout' : 'CORS/Blocked';
+        }
       }
 
-      try {
-        const degOffset = 0.45;
-        const osUrl = `https://opensky-network.org/api/states/all?lamin=${(loc.lat - degOffset).toFixed(3)}&lomin=${(loc.lon - degOffset).toFixed(3)}&lamax=${(loc.lat + degOffset).toFixed(3)}&lomax=${(loc.lon + degOffset).toFixed(3)}`;
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 6000);
-        const res = await fetch(osUrl, { cache: 'no-store', signal: controller.signal });
-        clearTimeout(timer);
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.states) && data.states.length > 0) {
-            const osParsed = data.states
-              .filter(s => typeof s[6] === 'number' && typeof s[5] === 'number' && !s[8])
-              .slice(0, 16)
-              .map((s, idx) => {
-                const callsign = (s[1] || s[0] || 'UNKN').trim();
-                const brand = airlineBranding(callsign);
-                const dLat = (s[6] - loc.lat) * 111.32;
-                const dLon = (s[5] - loc.lon) * 111.32 * Math.cos(loc.lat * Math.PI / 180);
-                const distKm = Math.max(0.8, Math.sqrt(dLat * dLat + dLon * dLon));
-                const brg = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
-
-                return {
-                  id: s[0] || `os_${idx}`,
-                  icao: callsign.slice(0, 3) || 'ADS',
-                  callsign,
-                  airline: brand.airline,
-                  type: 'Live ADS-B Target',
-                  reg: s[0] ? s[0].toUpperCase() : 'N/A',
-                  origin: loc.icao,
-                  dest: 'LIVE',
-                  altFt: typeof s[7] === 'number' ? Math.round(s[7] * 3.28084) : 15000,
-                  vrate: typeof s[11] === 'number' ? Math.round(s[11] * 196.85) : 0,
-                  spdKts: typeof s[9] === 'number' ? Math.round(s[9] * 1.94384) : 320,
-                  distKm: +distKm.toFixed(1),
-                  bearingDeg: Math.round(brg),
-                  bearingCard: getCardinal(brg),
-                  track: typeof s[10] === 'number' ? Math.round(s[10]) : 90,
-                  squawk: '----',
-                  tailColor: brand.tail,
-                  stripeColor: brand.stripe,
-                  xKm: dLon,
-                  yKm: dLat
-                };
-              });
-
-            if (osParsed.length > 0) {
-              const customOnes = aircraftList.filter(a => String(a.id).startsWith('custom_'));
-              aircraftList = [...customOnes, ...osParsed];
-              if (!aircraftList.some(a => a.id === selectedId)) selectedId = aircraftList[0].id;
-              badge.innerHTML = `LIVE • OPENSKY REAL • <span id="header-acft-count" class="ml-1">${aircraftList.length} ACFT</span>`;
-              document.getElementById('board-source-label').textContent = 'SOURCE: OPENSKY LIVE ADS-B + 1S KINEMATIC TRACKER';
-              updateAllViews();
-              return;
-            }
-          }
-        }
-      } catch (e) {}
-
-      badge.innerHTML = `SIM • ADS-B • <span id="header-acft-count" class="ml-1">${aircraftList.length} ACFT</span>`;
-      if (manual) updateAllViews();
+      badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 truncate';
+      badge.innerHTML = `OFFLINE (${lastError})`;
+      updateAllViews();
     }
 
     function tickOneSecondKinematics() {
-      if (!liveSim) return;
+      if (!liveSim || aircraftList.length === 0) return;
       aircraftList.forEach(ac => {
         const kmPerSec = (ac.spdKts * 1.852) / 3600;
         const trackRad = (ac.track * Math.PI) / 180;
         ac.xKm += Math.sin(trackRad) * kmPerSec;
         ac.yKm += Math.cos(trackRad) * kmPerSec;
         const dist = Math.sqrt(ac.xKm * ac.xKm + ac.yKm * ac.yKm);
-        if (dist > 44) ac.track = (ac.track + 180) % 360;
+        if (dist > 110) ac.track = (ac.track + 180) % 360;
         ac.distKm = Math.max(0.5, +dist.toFixed(1));
         const brg = (Math.atan2(ac.xKm, ac.yKm) * 180 / Math.PI + 360) % 360;
         ac.bearingDeg = Math.round(brg);
@@ -739,7 +686,7 @@
       if (currentView === 'board') renderBoard();
     }
 
-    function renderCleanSideProfile(tailColor = '#ea580c', stripeColor = '#fb923c') {
+    function renderCleanSideProfile(tailColor = '#0ea5e9', stripeColor = '#38bdf8') {
       let dots = '';
       for (let x = 108; x <= 298; x += 9) {
         dots += `<circle cx="${x}" cy="58" r="1.6" fill="#1e293b"/>`;
@@ -781,12 +728,24 @@
     }
 
     function renderPoster() {
+      const loc = LOCATIONS[currentLocationIdx];
+      document.getElementById('poster-origin').textContent = loc.icao;
+      document.getElementById('fw-loc').textContent = loc.icao;
+
+      if (aircraftList.length === 0) {
+        document.getElementById('poster-icao-pill').textContent = 'ADS-B';
+        document.getElementById('poster-vspeed-pill').textContent = 'SEARCHING SKY...';
+        document.getElementById('poster-callsign').textContent = 'NO LIVE FLIGHTS YET';
+        document.getElementById('poster-subtitle').innerHTML = `Tap refresh or switch airport • <span class="text-slate-200 font-semibold">${loc.icao}</span>`;
+        document.getElementById('poster-route-dist').textContent = '60 NM RADIUS';
+        document.getElementById('poster-plane-svg').innerHTML = renderCleanSideProfile('#0ea5e9', '#38bdf8');
+        document.getElementById('nearby-pills-grid').innerHTML = '';
+        return;
+      }
+
       const sorted = [...aircraftList].sort((a, b) => a.distKm - b.distKm);
       const active = sorted.find(a => a.id === selectedId) || sorted[0];
       selectedId = active.id;
-
-      const countEl = document.getElementById('header-acft-count');
-      if (countEl) countEl.textContent = `${aircraftList.length} ACFT`;
 
       document.getElementById('poster-icao-pill').textContent = active.icao;
       document.getElementById('poster-vspeed-pill').textContent = active.vrate > 100
@@ -797,8 +756,6 @@
 
       document.getElementById('poster-callsign').textContent = active.callsign;
       document.getElementById('poster-subtitle').innerHTML = `${active.type} • Reg <span class="text-slate-200 font-semibold">${active.reg}</span>`;
-
-      document.getElementById('poster-origin').textContent = active.origin;
       document.getElementById('poster-dest').textContent = active.dest;
       document.getElementById('poster-route-dist').textContent = `${active.distKm.toFixed(1)} KM AWAY`;
 
@@ -807,7 +764,6 @@
       document.getElementById('fw-alt').textContent = `${active.altFt.toLocaleString()} ft`;
       document.getElementById('fw-spd').textContent = `${active.spdKts} kts`;
       document.getElementById('fw-hdg').textContent = `${String(active.track).padStart(3, '0')}° ${active.bearingCard}`;
-      document.getElementById('fw-loc').textContent = LOCATIONS[currentLocationIdx].icao;
 
       document.getElementById('nearby-pills-grid').innerHTML = sorted.slice(0, 8).map(ac => {
         const isSelected = ac.id === active.id;
@@ -832,18 +788,22 @@
 
     function renderRadar() {
       const layer = document.getElementById('radar-targets-layer');
-      const active = aircraftList.find(a => a.id === selectedId) || aircraftList[0];
-
       document.getElementById('radar-tracks-badge').textContent = `${aircraftList.length} TRACKS`;
+      if (aircraftList.length === 0) {
+        layer.innerHTML = '';
+        return;
+      }
+
+      const active = aircraftList.find(a => a.id === selectedId) || aircraftList[0];
       document.getElementById('radar-detail-callsign').textContent = active.callsign;
       document.getElementById('radar-detail-airline').textContent = active.airline.toUpperCase();
       document.getElementById('radar-detail-dist').textContent = `${active.distKm.toFixed(1)} km`;
       document.getElementById('radar-detail-brg').textContent = `BRG ${String(active.bearingDeg).padStart(3, '0')}° (${active.bearingCard})`;
       document.getElementById('radar-detail-type').textContent = `${active.type} (${active.reg})`;
-      document.getElementById('radar-detail-route').textContent = `${active.origin} (Origin) → ${active.dest} (Destination)`;
+      document.getElementById('radar-detail-route').textContent = `${active.origin} (Receiver) → ${active.dest}`;
 
       layer.innerHTML = aircraftList.map(ac => {
-        const scale = 155 / 45;
+        const scale = 155 / 110;
         const cx = 180 + Math.max(-150, Math.min(150, ac.xKm * scale));
         const cy = 180 - Math.max(-150, Math.min(150, ac.yKm * scale));
         const isSel = ac.id === active.id;
@@ -860,23 +820,25 @@
 
     function renderBoard() {
       const sorted = [...aircraftList].sort((a, b) => a.distKm - b.distKm);
-      document.getElementById('overhead-board-list').innerHTML = sorted.map(ac => `
-        <div onclick="selectAircraft('${ac.id}', true)" class="avio-subcard p-3.5 flex items-center justify-between cursor-pointer hover:border-sky-500/40 transition">
-          <div class="space-y-1">
-            <div class="font-mono font-extrabold text-sm text-amber-400">${ac.callsign}</div>
-            <div class="font-mono text-[11px] text-slate-400">${ac.reg}</div>
-            <div class="font-mono text-[11px] text-sky-400 pt-1">${ac.origin} &rarr; ${ac.dest} • HDG ${ac.track}°</div>
-            <div class="font-mono text-xs font-semibold text-slate-300">${Math.round(ac.spdKts * 1.852)} km/h</div>
-          </div>
-          <div class="text-right space-y-1">
-            <div class="text-xs font-bold text-white">${ac.airline}</div>
-            <div class="text-[11px] text-slate-400">${ac.type}</div>
-            <div class="font-mono text-xs font-bold text-slate-200 pt-1">${Math.round(ac.altFt * 0.3048).toLocaleString()} m</div>
-            <div class="font-mono text-[10px] text-slate-400">${ac.altFt.toLocaleString()} ft</div>
-            <div class="font-mono text-xs font-extrabold text-emerald-400">${ac.distKm.toFixed(1)} km</div>
-          </div>
-        </div>
-      `).join('');
+      document.getElementById('overhead-board-list').innerHTML = sorted.length === 0
+        ? `<p class="text-xs text-slate-500 text-center py-4">No live aircraft loaded yet.</p>`
+        : sorted.map(ac => `
+            <div onclick="selectAircraft('${ac.id}', true)" class="avio-subcard p-3.5 flex items-center justify-between cursor-pointer hover:border-sky-500/40 transition">
+              <div class="space-y-1">
+                <div class="font-mono font-extrabold text-sm text-amber-400">${ac.callsign}</div>
+                <div class="font-mono text-[11px] text-slate-400">${ac.reg}</div>
+                <div class="font-mono text-[11px] text-sky-400 pt-1">${ac.origin} &rarr; ${ac.dest} • HDG ${ac.track}°</div>
+                <div class="font-mono text-xs font-semibold text-slate-300">${Math.round(ac.spdKts * 1.852)} km/h</div>
+              </div>
+              <div class="text-right space-y-1">
+                <div class="text-xs font-bold text-white">${ac.airline}</div>
+                <div class="text-[11px] text-slate-400">${ac.type}</div>
+                <div class="font-mono text-xs font-bold text-slate-200 pt-1">${Math.round(ac.altFt * 0.3048).toLocaleString()} m</div>
+                <div class="font-mono text-[10px] text-slate-400">${ac.altFt.toLocaleString()} ft</div>
+                <div class="font-mono text-xs font-extrabold text-emerald-400">${ac.distKm.toFixed(1)} km</div>
+              </div>
+            </div>
+          `).join('');
       document.getElementById('board-scan-time').textContent = new Date().toTimeString().split(' ')[0];
     }
 
@@ -913,6 +875,7 @@
     }
 
     function logCurrentAircraft() {
+      if (aircraftList.length === 0) return;
       const active = aircraftList.find(a => a.id === selectedId) || aircraftList[0];
       spottedLogs.unshift({
         id: Date.now(),
