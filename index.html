@@ -333,17 +333,14 @@
       { region: 'uk', icao: 'EGLL', iata: 'LHR', name: 'London Heathrow', lat: 51.4700, lon: -0.4543 },
       { region: 'uk', icao: 'EGSS', iata: 'STN', name: 'London Stansted', lat: 51.8850, lon: 0.2350 },
       { region: 'uk', icao: 'EGCC', iata: 'MAN', name: 'Manchester', lat: 53.3537, lon: -2.2750 },
-      // International / Foreign
-      { region: 'intl', icao: 'KJFK', iata: 'JFK', name: 'New York JFK', lat: 40.6413, lon: -73.7781 },
+      // International
       { region: 'intl', icao: 'KLAX', iata: 'LAX', name: 'Los Angeles', lat: 33.9416, lon: -118.4085 },
-      { region: 'intl', icao: 'OMDB', iata: 'DXB', name: 'Dubai', lat: 25.2532, lon: 55.3657 },
-      { region: 'intl', icao: 'EHAM', iata: 'AMS', name: 'Amsterdam', lat: 52.3105, lon: 4.7683 },
       { region: 'intl', icao: 'LFPG', iata: 'CDG', name: 'Paris CDG', lat: 49.0097, lon: 2.5479 },
-      { region: 'intl', icao: 'EDDF', iata: 'FRA', name: 'Frankfurt', lat: 50.0379, lon: 8.5622 },
-      { region: 'intl', icao: 'LEPA', iata: 'PMI', name: 'Palma Mallorca', lat: 39.5517, lon: 2.7388 },
-      { region: 'intl', icao: 'RJTT', iata: 'HND', name: 'Tokyo Haneda', lat: 35.5494, lon: 139.7798 },
+      { region: 'intl', icao: 'KJFK', iata: 'JFK', name: 'New York JFK', lat: 40.6413, lon: -73.7781 },
+      { region: 'intl', icao: 'OMDB', iata: 'DXB', name: 'Dubai', lat: 25.2532, lon: 55.3657 },
+      { region: 'intl', icao: 'EIDW', iata: 'DUB', name: 'Dublin', lat: 53.4287, lon: -6.2621 },
       { region: 'intl', icao: 'WSSS', iata: 'SIN', name: 'Singapore', lat: 1.3644, lon: 103.9915 },
-      { region: 'intl', icao: 'YSSY', iata: 'SYD', name: 'Sydney', lat: -33.9399, lon: 151.1753 }
+      { region: 'intl', icao: 'EHAM', iata: 'AMS', name: 'Amsterdam', lat: 52.3086, lon: 4.7639 }
     ];
 
     const DEFAULT_SETTINGS = {
@@ -561,13 +558,14 @@
       VIR: { name: 'Virgin Atlantic', short: 'VIRGIN', primary: '#e10a0a', secondary: '#ffffff', tail: '#c80028' },
       EIN: { name: 'Aer Lingus', short: 'AER LINGUS', primary: '#006272', secondary: '#78be20', tail: '#006272' },
       EUK: { name: 'Aer Lingus UK', short: 'AER LINGUS UK', primary: '#006272', secondary: '#78be20', tail: '#006272' },
+      EAI: { name: 'Emerald Airlines Ireland', short: 'EMERALD', primary: '#059669', secondary: '#ffffff', tail: '#059669' },
+      EAG: { name: 'Emerald Airlines UK', short: 'EMERALD', primary: '#059669', secondary: '#ffffff', tail: '#059669' },
       EXS: { name: 'Jet2.com', short: 'JET2', primary: '#d9262e', secondary: '#9ca3af', tail: '#d9262e' },
       TOM: { name: 'TUI Airways', short: 'TUI', primary: '#d40e14', secondary: '#70cbf4', tail: '#70cbf4' },
       TFL: { name: 'TUI fly Netherlands', short: 'TUI FLY', primary: '#d40e14', secondary: '#70cbf4', tail: '#70cbf4' },
       BLX: { name: 'TUI fly Nordic', short: 'TUI FLY', primary: '#d40e14', secondary: '#70cbf4', tail: '#70cbf4' },
       LOG: { name: 'Loganair', short: 'LOGANAIR', primary: '#d61f26', secondary: '#1e293b', tail: '#d61f26' },
       EZE: { name: 'Eastern Airways', short: 'EASTERN', primary: '#1e3a8a', secondary: '#dc2626', tail: '#1e3a8a' },
-      EAG: { name: 'Emerald Airlines', short: 'EMERALD', primary: '#059669', secondary: '#ffffff', tail: '#059669' },
       AUR: { name: 'Aurigny Air Services', short: 'AURIGNY', primary: '#facc15', secondary: '#dc2626', tail: '#facc15' },
       BCI: { name: 'Blue Islands', short: 'BLUE ISLANDS', primary: '#0284c7', secondary: '#ffffff', tail: '#0284c7' },
       NRS: { name: 'Norse Atlantic Airways', short: 'NORSE', primary: '#0f172a', secondary: '#38bdf8', tail: '#0f172a' },
@@ -647,7 +645,6 @@
       CPA: { name: 'Cathay Pacific', short: 'CATHAY PACIFIC', primary: '#006564', secondary: '#c8102e', tail: '#006564' },
       JAL: { name: 'Japan Airlines', short: 'JAPAN AIRLINES', primary: '#cc0000', secondary: '#ffffff', tail: '#cc0000' },
       ANA: { name: 'All Nippon Airways', short: 'ANA', primary: '#00469b', secondary: '#38bdf8', tail: '#00469b' },
-      SKY: { name: 'Skymark Airlines', short: 'SKYMARK', primary: '#003399', secondary: '#facc15', tail: '#003399' },
       KAL: { name: 'Korean Air', short: 'KOREAN AIR', primary: '#0064de', secondary: '#ffffff', tail: '#0064de' },
       AAR: { name: 'Asiana Airlines', short: 'ASIANA', primary: '#d81e05', secondary: '#facc15', tail: '#d81e05' },
       EVA: { name: 'EVA Air', short: 'EVA AIR', primary: '#006633', secondary: '#f97316', tail: '#006633' },
@@ -661,9 +658,6 @@
       MAS: { name: 'Malaysia Airlines', short: 'MALAYSIA', primary: '#002664', secondary: '#d81e05', tail: '#002664' },
       HVN: { name: 'Vietnam Airlines', short: 'VIETNAM AIRLINES', primary: '#00558f', secondary: '#d4af37', tail: '#00558f' },
       QFA: { name: 'Qantas', short: 'QANTAS', primary: '#e40000', secondary: '#ffffff', tail: '#e40000' },
-      VOZ: { name: 'Virgin Australia', short: 'VIRGIN AUS', primary: '#dc2626', secondary: '#6b21a8', tail: '#dc2626' },
-      JST: { name: 'Jetstar Airways', short: 'JETSTAR', primary: '#ff5500', secondary: '#94a3b8', tail: '#ff5500' },
-      ANZ: { name: 'Air New Zealand', short: 'AIR NZ', primary: '#0f172a', secondary: '#14b8a6', tail: '#0f172a' },
 
       // Cargo & Freight
       DHK: { name: 'DHL Air UK', short: 'DHL CARGO', primary: '#ffcc00', secondary: '#d40511', tail: '#ffcc00' },
@@ -704,8 +698,7 @@
       WS: 'WJA', EK: 'UAE', FZ: 'FDB', QR: 'QTR', EY: 'ETD', SV: 'SVA', SQ: 'SIA',
       CX: 'CPA', JL: 'JAL', NH: 'ANA', KE: 'KAL', OZ: 'AAR', BR: 'EVA', CI: 'CAL',
       CA: 'CCA', MU: 'CES', CZ: 'CSN', AI: 'AIC', '6E': 'IGO', TG: 'THA', MH: 'MAS',
-      VN: 'HVN', QF: 'QFA', VA: 'VOZ', JQ: 'JST', NZ: 'ANZ', D0: 'DHK', FX: 'FDX',
-      '5X': 'UPS', CV: 'CLX'
+      VN: 'HVN', QF: 'QFA', D0: 'DHK', FX: 'FDX', '5X': 'UPS', CV: 'CLX'
     };
 
     const REG_COUNTRY_MAP = [
@@ -730,8 +723,6 @@
       { re: /^9H-/, label: 'Maltese Charter / Bizjet' },
       { re: /^LX-/, label: 'Luxembourg Registered Aircraft' },
       { re: /^A6-/, label: 'UAE Registered Aircraft' },
-      { re: /^JA/, label: 'Japanese Civil Aircraft' },
-      { re: /^VH-/, label: 'Australian Civil Aircraft' },
       { re: /^9V-/, label: 'Singapore Registered Aircraft' }
     ];
 
@@ -976,7 +967,6 @@
     async function fetchLiveAirspace(manual = false) {
       if (bootRetryTimer) clearTimeout(bootRetryTimer);
 
-      // Abort any previous in-flight request when switching airports manually
       if (manual && activeFetchController) {
         activeFetchController.abort();
       } else if (!manual && activeFetchController) {
@@ -995,7 +985,7 @@
       const useUkScan = isStationInUkScan(appState.lat, appState.lon);
       const scanLat = useUkScan ? UK_SCAN.lat : appState.lat;
       const scanLon = useUkScan ? UK_SCAN.lon : appState.lon;
-      const scanDistNm = useUkScan ? UK_SCAN.distNm : 35; // 35 nm (~65 km) comfortably covers 40 km max zoom
+      const scanDistNm = useUkScan ? UK_SCAN.distNm : 35;
 
       const timeoutId = setTimeout(() => controller.abort(), 12000);
 
